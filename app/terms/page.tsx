@@ -1,0 +1,17 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import { Brand } from '@/components/brand';
+
+export const metadata: Metadata = { title: 'Terms' };
+
+export default function TermsPage() {
+  return <main className="min-h-screen bg-canvas px-4 py-7 sm:px-6 lg:px-8"><div className="mx-auto max-w-3xl"><header className="flex items-center justify-between"><Brand /><Link href="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-ink"><ArrowLeft size={15} />Home</Link></header><article className="mt-10 rounded-2xl border border-line bg-white p-6 shadow-card sm:p-10"><p className="eyebrow">Terms information</p><h1 className="mt-2 text-3xl font-extrabold tracking-[-0.05em] text-ink">Terms</h1><p className="mt-2 text-sm text-muted">Last updated: October 10, 2026 · Draft for deployment review</p><div className="mt-8 space-y-7 text-sm leading-7 text-slate-700">
+    <section><h2 className="text-base font-bold text-ink">A note about this preview</h2><p className="mt-2">These terms are a plain-language product template, not a final agreement or legal advice. The operator must replace or review them with counsel and publish the responsible legal entity, jurisdiction, support channel, pricing, and any service commitments before offering AmpTrail commercially.</p></section>
+    <section><h2 className="text-base font-bold text-ink">What the service does</h2><p className="mt-2">AmpTrail is intended to help electrical subcontractors organize extra-work notes, project details, evidence, time, materials, and printable work records. It does not interpret a construction contract, submit a change order, issue an invoice, certify a signature, or determine whether a customer approved work.</p></section>
+    <section><h2 className="text-base font-bold text-ink">Your records and responsibilities</h2><p className="mt-2">You are responsible for the accuracy and lawful use of information you add, your authority to upload photographs or customer information, protecting account access, and following your contracts and customer processes. A status such as “Approved” is a user-entered tracking status and is not independently verified by AmpTrail.</p></section>
+    <section><h2 className="text-base font-bold text-ink">Availability, security, and data</h2><p className="mt-2">This source build requires the deployment owner to configure Supabase, Vercel, email authentication, storage policies, backups, and operational monitoring. No uptime, support, data-retention, or payment-collection commitment is made by this preview. Do not use it for sensitive customer records until the deployment has been reviewed and tested.</p></section>
+    <section><h2 className="text-base font-bold text-ink">Proposed pricing</h2><p className="mt-2">The marketing page describes a proposed plan structure only. Paid subscriptions are not implemented or currently offered in this build.</p></section>
+    <section><h2 className="text-base font-bold text-ink">Contact</h2><p className="mt-2">The support contact and operator identity must be configured before launch. Visit <Link href="/contact" className="font-semibold text-orange-dark underline">Contact</Link> for current deployment details.</p></section>
+  </div></article><p className="mx-auto mt-5 max-w-3xl text-xs leading-5 text-muted">Have a legal professional review this page before accepting production users.</p></div></main>;
+}
