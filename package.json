@@ -12,7 +12,8 @@
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:db": "bash tests/db/run-db-tests.sh"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

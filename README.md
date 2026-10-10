@@ -63,17 +63,44 @@ Open <http://localhost:3000>. If Supabase keys are absent, the public website re
 
 1. Create a Supabase project and copy its **Project URL** plus a browser-safe **publishable key** (or legacy **anon key**) from Project Settings → API.
 2. Add the URL/key to `.env.local` for local use and to Vercel for each relevant environment (Preview and Production separately). Redeploy after changing Vercel environment variables.
-3. Apply `supabase/migrations/202610100001_initial_schema.sql` to a **fresh** database using the Supabase SQL Editor, or initialize/link the Supabase CLI and apply the migration with `supabase db push`. The migration creates the profiles/workspaces/projects/tickets/line-item/evidence/activity tables, indexes, constraints, triggers, RLS policies, the private `evidence` bucket, and its object policies.
+3. Apply the migrations in `supabase/migrations/` in order, using the Supabase SQL Editor or `supabase db push`:
+   - `202610100001_initial_schema.sql`: the profiles, companies, memberships, projects, tickets, line-item, evidence, and activity tables, indexes, constraints, triggers, RLS policies, the private `evidence` bucket, and its object policies. Apply it to a **fresh** database only.
+   - `202610100002_provisioning_repair.sql`: the shared provisioning routine, the account trigger, the `ensure_user_workspace` recovery function, least-privilege grants (including removing `TRUNCATE` from API roles), and the evidence path constraint. It is idempotent and safe to re-run. Apply it to every existing project, including projects that already have the first migration.
+   - Before and after applying, run the read-only checks in `docs/provisioning-runbook.md`.
 4. In Supabase → Authentication → URL Configuration, set **Site URL** to the deployment's canonical origin. Add these exact redirect URLs (as applicable):
    - `http://localhost:3000/auth/callback`
    - `https://YOUR_VERCEL_DOMAIN/auth/callback`
    - `https://YOUR_CUSTOM_DOMAIN/auth/callback`
 5. In Supabase → Authentication → Providers, enable Email. Choose whether email confirmation is required. If enabled, configure reliable SMTP for production and test delivery; AmpTrail shows a confirmation message and exchanges the emailed PKCE code at `/auth/callback`.
 6. Password-reset messages redirect through `/auth/callback?next=/reset-password`. Confirm that the redirect URL above is allowed. The callback only accepts safe relative destinations.
-7. Review the migration and RLS policies in your own project. The account trigger creates one company/workspace and owner membership on account creation. The starter UI selects the earliest workspace; a multi-workspace switcher and member-invitation flow are not included.
+7. Review the migration and RLS policies in your own project. The account trigger creates one profile, one company/workspace, and one owner membership on account creation. Accounts that exist without a membership (for example, created before the trigger was installed) are shown a **Name your company** step after sign-in; that step creates only the signed-in user's own workspace and never joins an existing company. The starter UI selects the earliest workspace; a multi-workspace switcher and member-invitation flow are not included.
 8. Test uploads with a signed-in account. The bucket is private, limited to 10 MB JPG/PNG/WebP objects. Signed image URLs expire after one hour. Do not manually make the bucket public.
 
-The SQL migration is intended for a new Supabase project. If you already applied an earlier version of it, do not re-run the `create table` statements blindly; create a reviewed follow-up migration for the changes instead.
+The initial migration is intended for a new Supabase project. Do not re-run its `create table` statements on an existing database. Put later schema changes in new forward migrations, such as `202610100002_provisioning_repair.sql`.
+
+### Signup and email confirmation flow
+
+- Signup validates every field before it contacts Supabase, then sends the company name as user metadata and `emailRedirectTo` set to `/auth/callback?next=/dashboard`.
+- If Supabase returns no session (email confirmation required), the app navigates to `/verify-email?email=…`. That page states the address the link was sent to, explains that the link must be opened in the same browser, and provides a resend action with a 60-second cooldown. A success message appears only when Supabase returns no error.
+- If Supabase returns a session (confirmation disabled), the app goes straight to `/dashboard`.
+- `/auth/callback` exchanges only the one-time PKCE `code`. A missing, invalid, or expired code redirects to `/login` with a message and never creates a session. After a successful exchange it calls `ensure_user_workspace()`, which is idempotent.
+- Unconfirmed accounts have no session, so protected routes redirect them to `/login`.
+
+### Workspace states
+
+`/dashboard` and the other workspace routes resolve the signed-in account into one of four states:
+
+| State | Result |
+|---|---|
+| Signed out | Redirect to `/login`. |
+| Signed in, membership exists | Workspace loads. |
+| Signed in, no membership (verified by a successful query returning no rows) | `/workspace-setup` asks for a company name and creates only this account's workspace. |
+| Signed in, lookup failed | `/workspace-unavailable` shows the failure category: setup incomplete (missing migration), permission denied, or a temporary problem. It never says the workspace is missing.
+
+## Automated tests
+
+- `npm run lint`, `npm run typecheck`, `npm test` (unit tests for auth rules, redirect safety, workspace-error classification, and existing ticket math), and `npm run build`.
+- `npm run test:db` runs the provisioning and tenant-isolation suite (`tests/db/provisioning.test.sql`) against a **throwaway local PostgreSQL** database. It needs `PG_SUPERUSER_URL` pointing at a local server, for example `PG_SUPERUSER_URL=postgresql://postgres@localhost/postgres`. Never point it at Supabase or production. The local harness (`tests/db/supabase-stub.sql`) approximates the Supabase roles, `auth.users`, `auth.uid()`, and `storage` objects. It does not replace testing against your real project.
 
 ## Database and access model
 
