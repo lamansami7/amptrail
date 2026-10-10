@@ -41,6 +41,7 @@ a { color: inherit; text-decoration: none; }
 
 @layer components {
   .field-label { @apply mb-1.5 block text-sm font-semibold text-ink; }
+  .field-error { @apply mt-1.5 text-xs font-medium leading-5 text-red-700; }
   .field-control { @apply block w-full rounded-xl border border-line bg-white px-3.5 py-3 text-[15px] text-ink shadow-sm outline-none transition placeholder:text-slate-400 focus:border-orange focus:ring-4 focus:ring-orange/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400; }
   .field-hint { @apply mt-1.5 text-xs leading-5 text-muted; }
   .card { @apply rounded-2xl border border-line bg-white shadow-card; }

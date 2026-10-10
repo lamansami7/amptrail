@@ -12,8 +12,9 @@ export default async function WorkspaceLayout({ children }: Readonly<{ children:
   }
 
   const context = await loadWorkspaceContext();
-  if (!context.user) redirect('/login');
-  if (!context.workspace) redirect('/workspace-setup');
+  if (context.status === 'anonymous') redirect('/login');
+  if (context.status === 'no_workspace') redirect('/workspace-setup');
+  if (context.status === 'error') redirect(`/workspace-unavailable?reason=${context.reason}`);
 
-  return <WorkspaceShell email={context.user.email || ''} fullName={context.user.user_metadata?.full_name || null} companyName={context.workspace.name}>{children}</WorkspaceShell>;
+  return <WorkspaceShell email={context.user.email || ''} fullName={(context.user.user_metadata?.full_name as string | undefined) || null} companyName={context.workspace.name}>{children}</WorkspaceShell>;
 }

@@ -161,6 +161,10 @@ export interface Database {
         };
         Returns: string;
       };
+      ensure_user_workspace: {
+        Args: { p_company_name?: string | null };
+        Returns: string | null;
+      };
     };
     Enums: {
       ticket_status: 'draft' | 'ready_for_review' | 'submitted' | 'approved' | 'rejected' | 'invoiced';
