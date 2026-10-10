@@ -112,7 +112,8 @@ npm run build
 
 1. Push the repository to GitHub and open the intended production branch/PR through your normal review process.
 2. In Vercel, choose **Add New → Project**, import the GitHub repository, and grant Vercel access to that repository if prompted.
-3. Keep the detected Next.js settings. The package scripts use `next build`; no custom build command is needed.
+3. Keep the detected Next.js settings. The package scripts use `next build`; no custom build command is needed. `vercel.json` in the repository root pins `framework: nextjs`, `buildCommand: next build`, `installCommand: npm ci`, and `outputDirectory: .next` so the Next.js preset is used even if the project was originally imported as a static site.
+   - If a deployment fails with `No Output Directory named "public" found after the Build completed` (`STATIC_BUILD_NO_OUT_DIR`), the project is being built as a static site. In Vercel → **Settings → Build & Development Settings**, set **Framework Preset** to **Next.js** and turn the **Output Directory** override **off**. Do **not** work around this by adding a `public/` folder: that makes the build pass while deploying an empty static folder instead of the application.
 4. Add `NEXT_PUBLIC_SUPABASE_URL` and **one** of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` to Vercel's Preview and Production environments. Add the optional support email and canonical site URL only when they are ready to publish.
 5. Deploy a Preview build, configure the matching Supabase redirect URL, and exercise email sign-up/confirmation, sign-in, project creation, ticket edits, upload, and PDF export before merging/releasing.
 6. Add the production Vercel domain to Supabase's allowed redirect URLs and Site URL, then redeploy production and re-test password reset and sign-out.
