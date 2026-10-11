@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { Mail } from 'lucide-react';
 import { Brand } from '@/components/brand';
+import { SUPPORT_EMAIL, supportMailto } from '@/lib/support';
 
 const columns = [
   {
@@ -39,8 +41,6 @@ const columns = [
 ];
 
 export function SiteFooter() {
-  const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim();
-
   return (
     <footer className="border-t border-line bg-surface">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
@@ -51,11 +51,13 @@ export function SiteFooter() {
               Field documentation for electrical subcontractors. Capture extra work, crew time,
               materials and jobsite photos — then hand over a record that stands up.
             </p>
-            {supportEmail && (
-              <a href={`mailto:${supportEmail}`} className="link mt-4 inline-block text-[13px]">
-                {supportEmail}
-              </a>
-            )}
+            <a
+              href={supportMailto({ subject: 'AmpTrail question' })}
+              className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-body transition-colors duration-150 hover:text-brand-700"
+            >
+              <Mail size={13} className="text-subtle" aria-hidden="true" />
+              {SUPPORT_EMAIL}
+            </a>
           </div>
 
           {columns.map((column) => (

@@ -244,12 +244,12 @@ export function EvidencePanel({
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 className="group relative flex h-32 w-full shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-surface transition-colors duration-150 hover:border-brand-300 sm:h-36 sm:w-40"
-                aria-label={file ? 'Choose a different photo' : 'Take or choose a photo'}
+                aria-label={previewUrl ? 'Choose a different photo' : undefined}
               >
                 {previewUrl ? (
                   <img
                     src={previewUrl}
-                    alt="Selected photo preview"
+                    alt=""
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                 ) : (

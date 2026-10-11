@@ -1,10 +1,17 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Mail, Send } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { Button } from '@/components/ui/button';
+import {
+  describeAuthError,
+  passwordResetRedirectUrl,
+  resetRequestAcceptedNotice,
+} from '@/lib/auth/recovery';
+import { SUPPORT_EMAIL, supportMailto } from '@/lib/support';
+import { Button, ButtonLink } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Field } from '@/components/ui/field';
 
@@ -12,12 +19,19 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function ForgotPasswordForm() {
   const [pending, setPending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sentTo, setSentTo] = useState('');
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState<string>();
+  const [cooldown, setCooldown] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (pending || cooldown > 0) return;
     setError('');
     setEmailError(undefined);
 
@@ -31,25 +45,65 @@ export function ForgotPasswordForm() {
     setPending(true);
     try {
       const { error: resetError } = await createClient().auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+        redirectTo: passwordResetRedirectUrl(window.location.origin),
       });
       if (resetError) throw resetError;
-      setSent(true);
-    } catch {
+      setSentTo(email);
+      setCooldown(60);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setCooldown((remaining) => {
+          if (remaining <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            return 0;
+          }
+          return remaining - 1;
+        });
+      }, 1000);
+    } catch (submissionError) {
       setError(
-        'We could not send the reset email. Check your connection and try again in a moment.'
+        describeAuthError(
+          submissionError instanceof Error ? submissionError.message : 'Request failed.'
+        )
       );
     } finally {
       setPending(false);
     }
   }
 
-  if (sent) {
+  if (sentTo) {
     return (
-      <Alert tone="success" role="status" title="Reset email sent">
-        If an account exists for that address, a reset link is on its way. The link expires
-        shortly, so open it soon. Check your spam folder if it has not arrived within a few minutes.
-      </Alert>
+      <div className="space-y-4">
+        <Alert tone="success" role="status" title="Reset request accepted">
+          {resetRequestAcceptedNotice(sentTo)}
+        </Alert>
+        <div className="rounded-xl border border-line bg-surface-2/60 p-4 text-[13px] leading-6 text-muted">
+          <p className="font-semibold text-ink">What happens next</p>
+          <ol className="mt-2 space-y-1.5">
+            <li>1. Open the message from your email provider.</li>
+            <li>2. Use the “Choose a new password” link — it works once and expires quickly.</li>
+            <li>3. Set the new password on the page it opens. You are done.</li>
+          </ol>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            loading={pending}
+            disabled={cooldown > 0}
+            onClick={() => {
+              setSentTo('');
+              setError('');
+            }}
+          >
+            <Send size={14} aria-hidden="true" />
+            {cooldown > 0 ? `Send again in ${cooldown}s` : 'Send to a different address'}
+          </Button>
+          <Link href="/login" className="link text-[13px]">
+            Back to sign in
+          </Link>
+        </div>
+      </div>
     );
   }
 
@@ -76,8 +130,15 @@ export function ForgotPasswordForm() {
       </Field>
 
       {error && (
-        <Alert tone="danger" role="alert" title="Reset email not sent">
-          {error}
+        <Alert tone="danger" role="alert" title="Reset email not requested">
+          <p>{error}</p>
+          <p className="mt-1.5 text-[12px]">
+            Still stuck? Email{' '}
+            <a href={supportMailto({ subject: 'Password reset help' })} className="link">
+              {SUPPORT_EMAIL}
+            </a>
+            .
+          </p>
         </Alert>
       )}
 
@@ -90,13 +151,40 @@ export function ForgotPasswordForm() {
 
 type ResetFieldErrors = { password?: string; confirm_password?: string };
 
-export function ResetPasswordForm() {
+/**
+ * The new-password form shown after a recovery link is opened. It verifies a
+ * recovery session exists first — if the link expired or was already used, the
+ * user gets an honest explanation and a one-click way to request a fresh link
+ * instead of a form that silently fails on submit.
+ */
+export function ResetPasswordForm({ linkError }: { linkError?: string }) {
   const router = useRouter();
+  const [sessionState, setSessionState] = useState<'checking' | 'ready' | 'missing'>(
+    linkError ? 'missing' : 'checking'
+  );
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<ResetFieldErrors>({});
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (linkError) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error: sessionError } = await createClient().auth.getSession();
+        if (!cancelled) {
+          setSessionState(!sessionError && data.session ? 'ready' : 'missing');
+        }
+      } catch {
+        if (!cancelled) setSessionState('missing');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [linkError]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -129,13 +217,64 @@ export function ResetPasswordForm() {
         router.replace('/dashboard');
         router.refresh();
       }, 1200);
-    } catch {
+    } catch (updateError) {
       setError(
-        'We could not update the password. The recovery link may have expired or already been used — request a fresh one.'
+        describeAuthError(updateError instanceof Error ? updateError.message : 'Update failed.')
       );
     } finally {
       setPending(false);
     }
+  }
+
+  if (sessionState === 'checking') {
+    return (
+      <div className="space-y-3" role="status" aria-live="polite">
+        <div className="h-11 animate-pulse rounded-lg bg-surface-3" />
+        <div className="h-11 animate-pulse rounded-lg bg-surface-3" />
+        <div className="h-11 animate-pulse rounded-lg bg-surface-3" />
+        <p className="text-center text-[12.5px] text-muted">Checking your secure link…</p>
+      </div>
+    );
+  }
+
+  if (sessionState === 'missing') {
+    return (
+      <div className="space-y-4">
+        <Alert
+          tone="warning"
+          role="status"
+          title="This link can no longer be used"
+        >
+          {linkError === 'otp_expired'
+            ? 'The password recovery link has expired. These links are short-lived on purpose.'
+            : 'Recovery links work once and expire quickly. This one has expired, was already used, or was opened without its secure code.'}
+        </Alert>
+        <div className="rounded-xl border border-line bg-surface-2/60 p-4 text-[13px] leading-6 text-muted">
+          <p className="font-semibold text-ink">Get a fresh link</p>
+          <p className="mt-1.5">
+            Request a new reset email and open the link from that message right away. It arrives at
+            the email address on your account.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2.5">
+          <ButtonLink href="/forgot-password" size="lg" className="w-full">
+            <Mail size={16} aria-hidden="true" />
+            Send a new reset link
+          </ButtonLink>
+          <ButtonLink href="/login" variant="secondary" size="lg" className="w-full">
+            Back to sign in
+          </ButtonLink>
+          <p className="flex items-center justify-center gap-1.5 pt-1 text-[12px] text-muted">
+            <AlertCircle size={12} className="text-subtle" aria-hidden="true" />
+            Link keeps failing? Email{' '}
+            <a href={supportMailto({ subject: 'Password reset link problems' })} className="link">
+              {SUPPORT_EMAIL}
+            </a>
+            .
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (done) {
@@ -198,6 +337,11 @@ export function ResetPasswordForm() {
       <Button type="submit" size="lg" loading={pending} className="w-full">
         {pending ? 'Updating password…' : 'Save new password'}
       </Button>
+
+      <p className="text-center text-[12px] leading-5 text-subtle">
+        Setting this password signs you in on this device. Other signed-in devices keep their
+        sessions until they expire.
+      </p>
     </form>
   );
 }

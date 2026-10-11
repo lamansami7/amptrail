@@ -81,9 +81,13 @@ export default async function EvidencePage() {
           3600
         )
     : { data: [], error: null };
-  const signedUrlByPath = new Map(
-    (signedEvidence.data ?? []).map((item) => [item.path ?? '', item.signedUrl])
-  );
+  // Index-based mapping: createSignedUrls preserves request order and works
+  // even when the response does not echo each path.
+  const signedUrlByPath = new Map<string, string>();
+  (signedEvidence.data ?? []).forEach((item, index) => {
+    const key = item.path ?? evidenceRows[index]?.storage_path ?? '';
+    if (key && item.signedUrl) signedUrlByPath.set(key, item.signedUrl);
+  });
 
   const captureEvidence: Array<EvidenceView & { project_id: string; ticket_id: string | null }> =
     evidenceRows.map((item) => ({

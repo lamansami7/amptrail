@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Database, KeyRound, LifeBuoy } from 'lucide-react';
 import { SUPABASE_SETUP_MESSAGE } from '@/lib/supabase/config';
+import { SUPPORT_EMAIL, supportMailto } from '@/lib/support';
 import { Alert } from '@/components/ui/alert';
 
 /**
@@ -46,9 +47,15 @@ export function SetupNotice({
       )}
 
       <p className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px]">
-        <Link href="/contact" className="link inline-flex items-center gap-1.5">
+        <a
+          href={supportMailto({ subject: 'Help connecting Supabase' })}
+          className="link inline-flex items-center gap-1.5"
+        >
           <LifeBuoy size={13} aria-hidden="true" />
-          Contact support
+          {SUPPORT_EMAIL}
+        </a>
+        <Link href="/contact" className="link">
+          Support centre
         </Link>
         <a
           href="https://supabase.com/docs/guides/auth"

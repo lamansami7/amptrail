@@ -1,4 +1,5 @@
 import { Alert } from '@/components/ui/alert';
+import { SUPPORT_EMAIL, supportMailto } from '@/lib/support';
 
 /**
  * Shown when a workspace query fails. Deliberately reassuring and actionable —
@@ -26,7 +27,11 @@ export function WorkspaceDataNotice({
       }
     >
       {message} If this continues, confirm the Supabase migration has been applied and that your
-      session is current.
+      session is current — or email{' '}
+      <a href={supportMailto({ subject: 'Workspace data not loading' })} className="link">
+        {SUPPORT_EMAIL}
+      </a>
+      .
     </Alert>
   );
 }

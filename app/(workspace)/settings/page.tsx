@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { KeyRound, Lock, LogOut, ShieldCheck, Users } from 'lucide-react';
+import { KeyRound, LifeBuoy, LogOut, Mail, ShieldCheck, Users } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { WorkspaceDataNotice } from '@/components/workspace/data-notice';
 import { SettingsForm } from '@/components/forms/settings-form';
 import { SignOutButton } from '@/components/workspace/sign-out-button';
+import { SendResetLinkButton } from '@/components/account/send-reset-link-button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { requireWorkspace } from '@/lib/data/workspace';
+import { SUPPORT_EMAIL, supportMailto } from '@/lib/support';
 import { formatDate } from '@/lib/utils';
 
 export const metadata: Metadata = { title: 'Settings' };
@@ -69,14 +71,8 @@ export default async function SettingsPage() {
               )}
               <div className="py-1.5">
                 <dt className="text-[12px] text-subtle">Password</dt>
-                <dd className="mt-1">
-                  <Link
-                    href="/forgot-password"
-                    className="link inline-flex items-center gap-1.5 text-[13px]"
-                  >
-                    <Lock size={13} aria-hidden="true" />
-                    Send a reset link
-                  </Link>
+                <dd className="mt-2">
+                  <SendResetLinkButton />
                 </dd>
               </div>
             </dl>
@@ -126,6 +122,28 @@ export default async function SettingsPage() {
                 your company workspace.
               </p>
               <SignOutButton variant="secondary" size="md" className="self-start" />
+            </div>
+          </Card>
+
+          <Card flush>
+            <CardHeader
+              title="Help &amp; support"
+              description="Real people, one email away"
+              icon={<LifeBuoy size={16} aria-hidden="true" />}
+              bordered
+            />
+            <div className="px-5 py-4">
+              <p className="text-[13px] leading-6 text-muted">
+                Questions about your workspace, a specific record, or an export? Email support with
+                the project or ticket number and we will take it from there.
+              </p>
+              <a
+                href={supportMailto({ subject: 'AmpTrail workspace help' })}
+                className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3.5 text-[13px] font-semibold text-ink shadow-xs transition-colors duration-150 hover:bg-surface-2"
+              >
+                <Mail size={14} aria-hidden="true" />
+                {SUPPORT_EMAIL}
+              </a>
             </div>
           </Card>
 

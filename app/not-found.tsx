@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, FileQuestion, Home } from 'lucide-react';
 import { Brand } from '@/components/brand';
 import { ButtonLink } from '@/components/ui/button';
+import { SUPPORT_EMAIL, supportMailto } from '@/lib/support';
 
 export const metadata: Metadata = { title: 'Not found' };
 
@@ -40,7 +41,12 @@ export default function NotFound() {
           Need a hand?{' '}
           <Link href="/contact" className="link">
             Contact support
-          </Link>
+          </Link>{' '}
+          or email{' '}
+          <a href={supportMailto({ subject: 'Page not found' })} className="link">
+            {SUPPORT_EMAIL}
+          </a>
+          .
         </p>
       </div>
     </main>

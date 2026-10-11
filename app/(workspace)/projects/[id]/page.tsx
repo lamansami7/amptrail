@@ -151,9 +151,13 @@ export default async function ProjectDetailPage({ params }: Props) {
           3600
         )
     : { data: [], error: null };
-  const signedUrlByPath = new Map(
-    (signedEvidence.data ?? []).map((item) => [item.path ?? '', item.signedUrl])
-  );
+  // Index-based mapping: createSignedUrls preserves request order and works
+  // even when the response does not echo each path.
+  const signedUrlByPath = new Map<string, string>();
+  (signedEvidence.data ?? []).forEach((item, index) => {
+    const key = item.path ?? evidenceFiles[index]?.storage_path ?? '';
+    if (key && item.signedUrl) signedUrlByPath.set(key, item.signedUrl);
+  });
 
   return (
     <div className="space-y-6">
@@ -327,47 +331,39 @@ export default async function ProjectDetailPage({ params }: Props) {
           <Card flush>
             <CardHeader title="Job details" bordered />
             <dl className="divide-y divide-line">
-              <div className="flex gap-3 px-5 py-3.5">
-                <Building2 size={16} className="mt-0.5 shrink-0 text-faint" aria-hidden="true" />
-                <div className="min-w-0">
-                  <dt className="text-[12px] text-subtle">General contractor</dt>
-                  <dd className="mt-0.5 text-[13.5px] font-medium text-ink">
-                    {project.general_contractor || 'Not recorded'}
-                  </dd>
-                </div>
+              <div className="grid grid-cols-[16px_minmax(0,1fr)] gap-x-3 px-5 py-3.5">
+                <Building2 size={16} className="mt-0.5 text-faint" aria-hidden="true" />
+                <dt className="text-[12px] text-subtle">General contractor</dt>
+                <dd className="col-start-2 mt-0.5 text-[13.5px] font-medium text-ink">
+                  {project.general_contractor || 'Not recorded'}
+                </dd>
               </div>
-              <div className="flex gap-3 px-5 py-3.5">
-                <MapPin size={16} className="mt-0.5 shrink-0 text-faint" aria-hidden="true" />
-                <div className="min-w-0">
-                  <dt className="text-[12px] text-subtle">Jobsite address</dt>
-                  <dd className="mt-0.5 text-[13.5px] font-medium text-ink">
-                    {project.site_address || 'Not recorded'}
-                  </dd>
-                </div>
+              <div className="grid grid-cols-[16px_minmax(0,1fr)] gap-x-3 px-5 py-3.5">
+                <MapPin size={16} className="mt-0.5 text-faint" aria-hidden="true" />
+                <dt className="text-[12px] text-subtle">Jobsite address</dt>
+                <dd className="col-start-2 mt-0.5 text-[13.5px] font-medium text-ink">
+                  {project.site_address || 'Not recorded'}
+                </dd>
               </div>
-              <div className="flex gap-3 px-5 py-3.5">
-                <Tag size={16} className="mt-0.5 shrink-0 text-faint" aria-hidden="true" />
-                <div className="min-w-0">
-                  <dt className="text-[12px] text-subtle">Job number</dt>
-                  <dd className="mt-0.5 font-mono text-[13.5px] font-medium text-ink">
-                    {project.project_number || 'Not recorded'}
-                  </dd>
-                </div>
+              <div className="grid grid-cols-[16px_minmax(0,1fr)] gap-x-3 px-5 py-3.5">
+                <Tag size={16} className="mt-0.5 text-faint" aria-hidden="true" />
+                <dt className="text-[12px] text-subtle">Job number</dt>
+                <dd className="col-start-2 mt-0.5 font-mono text-[13.5px] font-medium text-ink">
+                  {project.project_number || 'Not recorded'}
+                </dd>
               </div>
-              <div className="flex gap-3 px-5 py-3.5">
-                <CalendarDays size={16} className="mt-0.5 shrink-0 text-faint" aria-hidden="true" />
-                <div className="min-w-0">
-                  <dt className="text-[12px] text-subtle">Last updated</dt>
-                  <dd className="mt-0.5 text-[13.5px] font-medium text-ink">
-                    {formatDate(project.updated_at, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </dd>
-                </div>
+              <div className="grid grid-cols-[16px_minmax(0,1fr)] gap-x-3 px-5 py-3.5">
+                <CalendarDays size={16} className="mt-0.5 text-faint" aria-hidden="true" />
+                <dt className="text-[12px] text-subtle">Last updated</dt>
+                <dd className="col-start-2 mt-0.5 text-[13.5px] font-medium text-ink">
+                  {formatDate(project.updated_at, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </dd>
               </div>
             </dl>
             {project.notes && (

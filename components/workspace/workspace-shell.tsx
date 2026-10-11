@@ -102,6 +102,7 @@ function AccountMenu({
   return (
     <Menu
       label="Account menu"
+      triggerLabel={compact ? `${initials(displayName)} account menu` : undefined}
       align={align}
       side={side}
       triggerClassName={compact ? undefined : 'w-full'}
@@ -122,6 +123,7 @@ function AccountMenu({
             </span>
           )}
           {!compact && <ChevronRight size={14} className="shrink-0 rotate-[-90deg] text-subtle" />}
+          {!compact && <span className="sr-only">account menu</span>}
         </span>
       }
       items={[

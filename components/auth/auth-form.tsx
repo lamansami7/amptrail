@@ -5,23 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { authCallbackUrl, describeAuthError } from '@/lib/auth/recovery';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Field } from '@/components/ui/field';
-
-function friendlyError(message: string) {
-  if (/invalid login credentials/i.test(message))
-    return 'That email and password combination did not match. Check for typos or reset your password.';
-  if (/email not confirmed/i.test(message))
-    return 'This account still needs email confirmation. Open the link we emailed you, then sign in again.';
-  if (/user already registered/i.test(message))
-    return 'An account already exists for this email. Try logging in instead.';
-  if (/password/i.test(message) && /short|weak|characters/i.test(message))
-    return 'Choose a password with at least 8 characters.';
-  if (/rate limit|too many requests/i.test(message))
-    return 'Too many attempts in a row. Wait a moment, then try again.';
-  return 'We could not complete that request. Check your connection and try again.';
-}
 
 function safeNextPath(path?: string) {
   return path?.startsWith('/') && !path.startsWith('//') && !path.includes('\\') ? path : '/dashboard';
@@ -77,7 +64,7 @@ export function AuthForm({ mode, nextPath }: { mode: 'login' | 'signup'; nextPat
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+            emailRedirectTo: authCallbackUrl(window.location.origin, '/dashboard'),
             data: {
               full_name: String(form.get('full_name') || '').trim(),
               company_name: companyName,
@@ -103,7 +90,7 @@ export function AuthForm({ mode, nextPath }: { mode: 'login' | 'signup'; nextPat
       }
     } catch (submissionError) {
       setError(
-        friendlyError(
+        describeAuthError(
           submissionError instanceof Error ? submissionError.message : 'Authentication failed.'
         )
       );
