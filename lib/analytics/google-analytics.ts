@@ -1,5 +1,6 @@
 export const GA_MEASUREMENT_ID = 'G-MBG985L02V';
 export const GA_READY_EVENT = 'amptrail:analytics-ready';
+export const GA_CONSENT_EVENT = 'amptrail:analytics-consent-change';
 export const SIGN_UP_STORAGE_KEY = 'amptrail:ga4:sign_up_tracked';
 export const ANALYTICS_ORIGIN = new URL(
   process.env.NEXT_PUBLIC_SITE_URL || 'https://getamptrail.vercel.app'
@@ -200,8 +201,11 @@ export function createPageViewTracker() {
   return (pathname: string, gtag: Gtag) => {
     // Avoid duplicate effects in React Strict Mode, not legitimate back/forward visits.
     if (pathname === lastPathname) return;
-    lastPathname = pathname;
+    // Do not consume the route while consent is denied. If a consent manager
+    // grants analytics later and asks the component to retry, the current page
+    // must still be eligible for its first page_view.
     if (!hasAnalyticsConsent()) return;
+    lastPathname = pathname;
 
     const page = getAnalyticsPage(pathname);
     if (page) {
@@ -212,6 +216,9 @@ export function createPageViewTracker() {
           page_location: `${ANALYTICS_ORIGIN}${page.path}`,
           page_title: page.title,
           page_referrer: previousPage ? `${ANALYTICS_ORIGIN}${previousPage.path}` : '',
+          // Explicitly override the property-level automatic user-data setting.
+          // The relay independently drops every non-allowlisted field as defense in depth.
+          user_data: {},
           // Event-only marker: automatic/enhanced-measurement events never receive it.
           amptrail_page_view: '1',
         });
@@ -289,6 +296,8 @@ export function createSignUpTracker(options?: {
         page_location: `${ANALYTICS_ORIGIN}/signup`,
         page_title: `AmpTrail · ${pages['/signup']}`,
         page_referrer: '',
+        // Never attach account fields or property-level automatically detected data.
+        user_data: {},
         // Event-only marker: automatic/enhanced-measurement events never receive it.
         amptrail_sign_up: '1',
       });
@@ -358,7 +367,12 @@ export function trackSignUp(result?: SignUpAuthResult): boolean {
 export const GA_INITIALIZATION_SCRIPT = `
   if (!window.__amptrailGaInitialized) {
     window.dataLayer = window.dataLayer || [];
-    window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+    window.gtag = window.gtag || function () {
+      window.dataLayer.push(arguments);
+      if (arguments[0] === 'consent' && arguments[1] === 'update') {
+        window.dispatchEvent(new Event('${GA_CONSENT_EVENT}'));
+      }
+    };
     window.gtag('js', new Date());
     window.gtag('config', '${GA_MEASUREMENT_ID}', {
       send_page_view: false,
@@ -431,10 +445,21 @@ export function filterAnalyticsHit(input: URLSearchParams): URLSearchParams | nu
   });
 
   // Numeric session/engagement metadata preserves GA's page-view/session counts.
-  for (const key of ['_p', '_s', '_ss', '_fv', '_et', 'sid', 'sct', 'seg']) {
+  for (const key of ['_p', '_s', '_ss', '_fv', '_nsi', '_et', 'sid', 'sct', 'seg']) {
     const value = input.get(key);
     if (value && /^\d{1,20}$/.test(value)) output.set(key, value);
   }
+
+  // Keep the Google tag's non-user tag version marker. It is part of the web
+  // collection wire format and contains no browser/account data.
+  const tagVersion = input.get('gtm');
+  if (tagVersion && /^[a-z0-9._~-]{1,128}$/i.test(tagVersion)) {
+    output.set('gtm', tagVersion);
+  }
+
+  // Tag Assistant / debug-mode hits need this protocol flag to reach DebugView.
+  // Never accept an arbitrary debug value or any other unchecked system field.
+  if (input.get('_dbg') === '1') output.set('_dbg', '1');
 
   // Preserve valid consent signals; never forward arbitrary strings from a request.
   // (Denied analytics states were already dropped above; x/- mean unset, not denied.)
