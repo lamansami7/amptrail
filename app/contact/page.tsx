@@ -1,68 +1,105 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowLeft, Mail, MessageCircle } from 'lucide-react';
-import { Brand } from '@/components/brand';
+import { BookOpen, LifeBuoy, Mail, ShieldQuestion } from 'lucide-react';
+import { LegalSection, LegalShell } from '@/components/marketing/legal-shell';
+import { Alert } from '@/components/ui/alert';
 import { ButtonLink } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
 
-export const metadata: Metadata = { title: 'Contact Support' };
+export const metadata: Metadata = { title: 'Contact' };
 
 export default function ContactPage() {
   const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim();
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-3xl">
-        <header className="flex items-center justify-between">
-          <Brand />
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition"
+    <LegalShell
+      eyebrow="Support"
+      title="Contact AmpTrail"
+      aside={
+        <Card flush>
+          <CardHeader title="Before you write" description="Fast answers" bordered />
+          <ul className="divide-y divide-line text-[13px]">
+            {[
+              ['Reset a password', '/forgot-password', 'Send yourself a reset link'],
+              ['Workspace locked', '/workspace-setup', 'Membership provisioning steps'],
+              ['How it works', '/#workflow', 'The four-step field workflow'],
+            ].map(([label, href, description]) => (
+              <li key={label}>
+                <Link
+                  href={href}
+                  className="block px-5 py-3 transition-colors duration-150 hover:bg-surface-2"
+                >
+                  <span className="block font-semibold text-ink">{label}</span>
+                  <span className="mt-0.5 block text-[12px] text-muted">{description}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      }
+    >
+      <LegalSection heading="Talk to us">
+        <p>
+          Questions about deployment configuration, field workflow, or administering your company
+          workspace? Send them over with the project or ticket number if it relates to a specific
+          record.
+        </p>
+      </LegalSection>
+
+      {supportEmail ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <a
+            href={`mailto:${supportEmail}`}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand-600 px-5 text-[14px] font-semibold text-white shadow-xs transition-colors duration-150 hover:bg-brand-700"
           >
-            <ArrowLeft size={14} /> Back to site
-          </Link>
-        </header>
-
-        <section className="card mt-10 p-6 sm:p-10">
-          <p className="eyebrow">Direct Assistance</p>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-            Contact AmpTrail Support
-          </h1>
-          <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-500">
-            Have questions regarding deployment configuration, jobsite workflows, or company workspace administration? We are here to assist your team.
-          </p>
-
-          <div className="mt-8">
-            {supportEmail ? (
-              <a
-                href={`mailto:${supportEmail}`}
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition"
-              >
-                <Mail size={16} />
-                <span>Email {supportEmail}</span>
-              </a>
-            ) : (
-              <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-xs text-amber-900">
-                <MessageCircle size={18} className="mt-0.5 shrink-0 text-amber-700" />
-                <div>
-                  <p className="font-bold">Support Email Not Specified</p>
-                  <p className="mt-1 text-slate-600">
-                    To publish a direct support channel, configure the <code className="rounded bg-white px-1 py-0.5 font-mono">NEXT_PUBLIC_SUPPORT_EMAIL</code> variable in your hosting environment.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3 border-t border-slate-100 pt-6">
+            <Mail size={16} aria-hidden="true" />
+            Email {supportEmail}
+          </a>
+          <ButtonLink href="/#faq" variant="secondary" size="lg">
+            <BookOpen size={15} aria-hidden="true" />
+            Read the FAQ
+          </ButtonLink>
+        </div>
+      ) : (
+        <>
+          <Alert tone="warning" title="No support address is published yet">
+            This deployment has not configured a support email. An operator can set{' '}
+            <code className="rounded bg-surface-3 px-1 py-0.5 font-mono text-[11.5px]">
+              NEXT_PUBLIC_SUPPORT_EMAIL
+            </code>{' '}
+            in the hosting environment to publish a direct contact channel here.
+          </Alert>
+          <div className="flex flex-wrap gap-3">
             <ButtonLink href="/signup">
-              Create Free Workspace
+              <LifeBuoy size={15} aria-hidden="true" />
+              Create a workspace
             </ButtonLink>
             <ButtonLink href="/login" variant="secondary">
-              Existing Member Sign In
+              Sign in
             </ButtonLink>
           </div>
-        </section>
-      </div>
-    </main>
+        </>
+      )}
+
+      <LegalSection heading="What we can help with">
+        <ul className="space-y-2">
+          {[
+            'Connecting your deployment to a Supabase project',
+            'Applying the schema migration and fixing workspace membership problems',
+            'Understanding ticket statuses, totals, or PDF output',
+            'Issues uploading evidence photos or signing in',
+          ].map((item) => (
+            <li key={item} className="flex items-start gap-2.5">
+              <ShieldQuestion
+                size={15}
+                className="mt-1.5 shrink-0 text-brand-600"
+                aria-hidden="true"
+              />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </LegalSection>
+    </LegalShell>
   );
 }

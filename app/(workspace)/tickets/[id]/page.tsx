@@ -8,25 +8,80 @@ import {
   FileText,
   MapPin,
   Pencil,
+  Package,
   Plus,
   UserRound,
   Wrench,
-  Receipt,
 } from 'lucide-react';
 import { requireWorkspace } from '@/lib/data/workspace';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatHours, formatQuantity } from '@/lib/utils';
 import { calculateTicketTotals } from '@/lib/tickets/totals';
-import { DataSetupMessage } from '@/components/workspace/app-page';
-import { StatusBadge } from '@/components/workspace/status-badge';
+import { WorkspaceDataNotice } from '@/components/workspace/data-notice';
+import { Alert } from '@/components/ui/alert';
 import { ButtonLink } from '@/components/ui/button';
-import { duplicateTicketAction } from '@/lib/actions/tickets';
+import { Card, CardHeader } from '@/components/ui/card';
+import { TableShell, Td, Th, Tr } from '@/components/ui/table';
+import { StatusBadge } from '@/components/workspace/status-badge';
 import { DeleteTicketButton } from '@/components/tickets/delete-ticket-button';
+import { DuplicateTicketButton } from '@/components/tickets/duplicate-ticket-button';
 import { TicketExport } from '@/components/tickets/ticket-export';
 import { EvidencePanel, type EvidenceView } from '@/components/evidence/evidence-panel';
 
-export const metadata: Metadata = { title: 'Work Ticket Details' };
+export const metadata: Metadata = { title: 'Work ticket' };
 
 type Props = { params: Promise<{ id: string }> };
+
+function LineItemsTable({
+  rows,
+  unitLabel,
+}: {
+  rows: Array<{ id: string; description: string; quantity: number; unitCost: number; total: number }>;
+  unitLabel: string;
+}) {
+  return (
+    <TableShell>
+      <thead>
+        <tr>
+          <Th>{unitLabel === 'Hours' ? 'Worker / role' : 'Description'}</Th>
+          <Th align="right" className="w-[6rem]">
+            {unitLabel}
+          </Th>
+          <Th align="right" className="w-[7.5rem]">
+            Rate
+          </Th>
+          <Th align="right" className="w-[8rem]">
+            Amount
+          </Th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <Tr key={row.id}>
+            <Td className="font-medium text-ink">{row.description}</Td>
+            <Td align="right" className="tabular-nums text-muted">
+              {unitLabel === 'Hours' ? formatHours(row.quantity) : formatQuantity(row.quantity)}
+            </Td>
+            <Td align="right" className="font-mono tabular-nums text-muted">
+              {formatCurrency(row.unitCost)}
+              {unitLabel === 'Hours' ? <span className="text-faint"> /hr</span> : null}
+            </Td>
+            <Td align="right" className="font-mono font-semibold tabular-nums text-ink">
+              {formatCurrency(row.total)}
+            </Td>
+          </Tr>
+        ))}
+        <tr className="bg-surface-2/70">
+          <Td colSpan={3} className="py-2.5 text-right text-[12.5px] font-medium text-muted">
+            Subtotal
+          </Td>
+          <Td align="right" className="py-2.5 font-mono text-[13.5px] font-semibold text-ink">
+            {formatCurrency(rows.reduce((sum, row) => sum + row.total, 0))}
+          </Td>
+        </tr>
+      </tbody>
+    </TableShell>
+  );
+}
 
 export default async function TicketDetailPage({ params }: Props) {
   const { id } = await params;
@@ -39,7 +94,15 @@ export default async function TicketDetailPage({ params }: Props) {
     .eq('company_id', workspace.id)
     .maybeSingle();
 
-  if (error) return <DataSetupMessage />;
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="print-page">
+          <WorkspaceDataNotice />
+        </div>
+      </div>
+    );
+  }
   if (!ticket) notFound();
 
   const [
@@ -82,282 +145,288 @@ export default async function TicketDetailPage({ params }: Props) {
   ]);
 
   if (projectError || laborError || materialError || costError || evidenceError || !project) {
-    return <DataSetupMessage />;
+    return (
+      <div className="print-page">
+        <WorkspaceDataNotice />
+      </div>
+    );
   }
 
-  const evidenceRows = evidence || [];
+  const evidenceRows = evidence ?? [];
   const signedEvidence = evidenceRows.length
-    ? await supabase.storage.from('evidence').createSignedUrls(evidenceRows.map((item) => item.storage_path), 3600)
+    ? await supabase.storage
+        .from('evidence')
+        .createSignedUrls(
+          evidenceRows.map((row) => row.storage_path),
+          3600
+        )
     : { data: [], error: null };
-  const signedUrlByPath = new Map((signedEvidence.data || []).map((item) => [item.path || '', item.signedUrl]));
+  const signedUrlByPath = new Map(
+    (signedEvidence.data ?? []).map((item) => [item.path ?? '', item.signedUrl])
+  );
 
-  const evidenceWithUrls: EvidenceView[] = evidenceRows.map((item) => ({
-    ...item,
-    signedUrl: signedUrlByPath.get(item.storage_path) || null,
-    canDelete: item.uploaded_by === user.id,
+  const evidenceWithUrls: EvidenceView[] = evidenceRows.map((row) => ({
+    ...row,
+    signedUrl: signedUrlByPath.get(row.storage_path) ?? null,
+    canDelete: row.uploaded_by === user.id,
   }));
 
+  const labourRows = labor ?? [];
+  const materialRows = materials ?? [];
+  const costRows = costs ?? [];
+
   const totals = calculateTicketTotals({
-    labor: (labor || []).map((l) => ({ hours: Number(l.hours), rate: Number(l.rate) })),
-    materials: (materials || []).map((m) => ({ quantity: Number(m.quantity), unit_cost: Number(m.unit_cost) })),
-    costs: (costs || []).map((c) => ({ quantity: Number(c.quantity), unit_cost: Number(c.unit_cost) })),
+    labor: labourRows.map((row) => ({ hours: Number(row.hours), rate: Number(row.rate) })),
+    materials: materialRows.map((row) => ({
+      quantity: Number(row.quantity),
+      unit_cost: Number(row.unit_cost),
+    })),
+    costs: costRows.map((row) => ({ quantity: Number(row.quantity), unit_cost: Number(row.unit_cost) })),
   });
 
   const canEdit = ticket.created_by === user.id;
+  const isDraft = ticket.status === 'draft';
 
   return (
     <div className="print-page space-y-6">
-      {/* Top action bar */}
       <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/tickets"
-          className="inline-flex min-h-9 items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg text-[13px] font-medium text-muted transition-colors duration-150 hover:text-ink"
         >
-          <ArrowLeft size={15} /> All Work Tickets
+          <ArrowLeft size={15} aria-hidden="true" />
+          All work tickets
         </Link>
 
         <div className="flex flex-wrap items-center gap-2">
           {canEdit && (
             <ButtonLink href={`/tickets/${ticket.id}/edit`} variant="secondary">
-              <Pencil size={14} /> Edit Ticket
+              <Pencil size={14} aria-hidden="true" />
+              Edit
             </ButtonLink>
           )}
-
-          {!project.is_archived ? (
-            <form action={duplicateTicketAction}>
-              <input type="hidden" name="id" value={ticket.id} />
-              <button
-                type="submit"
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-50 transition"
-              >
-                <Plus size={14} /> Duplicate Ticket
-              </button>
-            </form>
+          {project.is_archived ? (
+            <span className="text-[12px] text-muted">Restore the project to duplicate</span>
           ) : (
-            <span className="text-xs text-slate-400">Restore project to duplicate</span>
+            <DuplicateTicketButton ticketId={ticket.id} ticketNumber={ticket.ticket_number} />
           )}
-
-          {canEdit && ticket.status === 'draft' && (
+          {canEdit && isDraft && (
             <DeleteTicketButton id={ticket.id} ticketNumber={ticket.ticket_number} />
           )}
         </div>
       </div>
 
-      {/* Ticket Header Banner */}
-      <header className="card p-6 sm:p-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="eyebrow">Time & Material Work Record</span>
-              <span className="font-mono text-xs font-bold text-slate-400">
-                Created {formatDate(ticket.created_at)}
-              </span>
+      {/* Document header */}
+      <Card className="overflow-hidden">
+        <div className="flex flex-col gap-6 p-5 sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="font-mono text-[1.375rem] font-semibold tracking-[-0.01em] text-ink">
+                  {ticket.ticket_number}
+                </span>
+                <StatusBadge status={ticket.status} />
+              </div>
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
+                <span className="font-medium text-body">{project.name}</span>
+                {project.project_number && (
+                  <>
+                    <span aria-hidden="true" className="text-faint">
+                      ·
+                    </span>
+                    <span className="font-mono">{project.project_number}</span>
+                  </>
+                )}
+                <span aria-hidden="true" className="text-faint">
+                  ·
+                </span>
+                <Link href={`/projects/${project.id}`} className="link">
+                  Open project
+                </Link>
+              </p>
             </div>
-            <h1 className="mt-2 font-mono text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-              {ticket.ticket_number}
-            </h1>
-            <p className="mt-1.5 text-xs text-slate-500">
-              Project:{' '}
-              <Link
-                href={`/projects/${project.id}`}
-                className="font-bold text-blue-600 hover:underline"
-              >
-                {project.name}
-              </Link>
-              {project.project_number ? ` · ${project.project_number}` : ''}
-            </p>
+
+            <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-[13px] sm:grid-cols-3">
+              <div>
+                <dt className="text-subtle">Work performed</dt>
+                <dd className="mt-0.5 font-medium text-ink">
+                  {formatDate(ticket.occurred_at, { month: 'short', day: 'numeric', year: 'numeric' })}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-subtle">Documented total</dt>
+                <dd className="mt-0.5 font-mono font-semibold text-ink">
+                  {formatCurrency(totals.total)}
+                </dd>
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <dt className="text-subtle">Last updated</dt>
+                <dd className="mt-0.5 font-medium text-ink">
+                  {formatDate(ticket.updated_at, { month: 'short', day: 'numeric', year: 'numeric' })}
+                </dd>
+              </div>
+            </dl>
           </div>
 
-          <div className="flex flex-col items-start gap-2 sm:items-end">
-            <StatusBadge status={ticket.status} size="md" />
-            <span className="text-[11px] text-slate-400">
-              Updated {formatDate(ticket.updated_at, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-            </span>
+          <div className="no-print border-t border-line pt-5">
+            <TicketExport
+              companyName={workspace.name}
+              ticket={ticket}
+              project={project}
+              labor={labourRows}
+              materials={materialRows}
+              costs={costRows}
+              evidence={evidenceWithUrls}
+            />
           </div>
         </div>
-
-        {/* Action button bar: PDF and Print */}
-        <div className="no-print mt-6 border-t border-slate-100 pt-5">
-          <TicketExport
-            companyName={workspace.name}
-            ticket={ticket}
-            project={project}
-            labor={labor || []}
-            materials={materials || []}
-            costs={costs || []}
-            evidence={evidenceWithUrls}
-          />
-        </div>
-      </header>
-
-      {/* Disclaimers */}
-      <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-xs leading-5 text-amber-950 shadow-xs">
-        <strong>Field Tracking Record:</strong> Statuses and calculated values document time, materials, and field observations. This record does not establish formal customer approval, change order authorization, or guaranteed payment.
-      </div>
+      </Card>
 
       {project.is_archived && (
-        <div className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-xs text-slate-700">
-          This project is archived. Existing records are preserved for review, but new duplicates or tickets require restoring the project.
-        </div>
+        <Alert tone="warning" title="This project is archived">
+          The record is preserved and can still be exported. Restore the project to duplicate it or
+          create new tickets.
+        </Alert>
       )}
 
-      {/* Main Grid: Details + Sidebar */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        {/* Main Column */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
+        {/* Document body */}
         <div className="space-y-6">
-          {/* Work Description */}
-          <section className="card p-6">
-            <div className="mb-3 flex items-center gap-2">
-              <FileText size={17} className="text-blue-600" />
-              <h2 className="text-sm font-bold text-slate-900">Work Description</h2>
+          <Card flush>
+            <CardHeader
+              title="Work performed"
+              description="What the crew did and why it fell outside the original scope."
+              bordered
+            />
+            <div className="px-5 py-5 sm:px-6">
+              <p className="whitespace-pre-wrap text-[14px] leading-7 text-body">
+                {ticket.description}
+              </p>
             </div>
-            <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-slate-700">
-              {ticket.description}
-            </p>
-
             {ticket.out_of_scope_reason && (
-              <div className="mt-5 border-t border-slate-100 pt-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Reason Outside Original Scope
-                </p>
-                <p className="mt-1.5 whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-slate-700">
+              <div className="border-t border-line bg-surface-2/50 px-5 py-5 sm:px-6">
+                <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-subtle">
+                  Reason outside original scope
+                </h3>
+                <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-6 text-body">
                   {ticket.out_of_scope_reason}
                 </p>
               </div>
             )}
-          </section>
-
-          {/* Labor Breakdown */}
-          <section className="card p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock3 size={17} className="text-blue-600" />
-                <h2 className="text-sm font-bold text-slate-900">Labor Entries</h2>
-              </div>
-              <span className="font-mono text-xs font-bold text-slate-900 tabular-nums">
-                Subtotal: {formatCurrency(totals.labor)}
-              </span>
-            </div>
-
-            {!labor?.length ? (
-              <p className="text-xs text-slate-400">No labor entries recorded on this ticket.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs sm:text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      <th className="pb-2">Worker / Role</th>
-                      <th className="pb-2 text-right">Hours</th>
-                      <th className="pb-2 text-right">Rate</th>
-                      <th className="pb-2 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {labor.map((item) => (
-                      <tr key={item.id}>
-                        <td className="py-2.5 font-medium text-slate-900">{item.worker_name}</td>
-                        <td className="py-2.5 text-right font-mono text-slate-600 tabular-nums">{item.hours}</td>
-                        <td className="py-2.5 text-right font-mono text-slate-600 tabular-nums">{formatCurrency(item.rate)}</td>
-                        <td className="py-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">{formatCurrency(item.line_total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {ticket.notes && (
+              <div className="border-t border-line px-5 py-5 sm:px-6">
+                <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-subtle">
+                  Additional observations
+                </h3>
+                <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-6 text-body">
+                  {ticket.notes}
+                </p>
               </div>
             )}
-          </section>
+          </Card>
 
-          {/* Materials Breakdown */}
-          <section className="card p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Receipt size={17} className="text-blue-600" />
-                <h2 className="text-sm font-bold text-slate-900">Material Items</h2>
-              </div>
-              <span className="font-mono text-xs font-bold text-slate-900 tabular-nums">
-                Subtotal: {formatCurrency(totals.materials)}
-              </span>
-            </div>
-
-            {!materials?.length ? (
-              <p className="text-xs text-slate-400">No material items recorded.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs sm:text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      <th className="pb-2">Description</th>
-                      <th className="pb-2 text-right">Qty</th>
-                      <th className="pb-2 text-right">Unit Cost</th>
-                      <th className="pb-2 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {materials.map((item) => (
-                      <tr key={item.id}>
-                        <td className="py-2.5 font-medium text-slate-900">{item.description}</td>
-                        <td className="py-2.5 text-right font-mono text-slate-600 tabular-nums">{item.quantity}</td>
-                        <td className="py-2.5 text-right font-mono text-slate-600 tabular-nums">{formatCurrency(item.unit_cost)}</td>
-                        <td className="py-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">{formatCurrency(item.line_total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          {/* Equipment Breakdown */}
-          <section className="card p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wrench size={17} className="text-blue-600" />
-                <h2 className="text-sm font-bold text-slate-900">Equipment & Other Costs</h2>
-              </div>
-              <span className="font-mono text-xs font-bold text-slate-900 tabular-nums">
-                Subtotal: {formatCurrency(totals.other)}
-              </span>
-            </div>
-
-            {!costs?.length ? (
-              <p className="text-xs text-slate-400">No equipment or additional costs recorded.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs sm:text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      <th className="pb-2">Description</th>
-                      <th className="pb-2 text-right">Qty</th>
-                      <th className="pb-2 text-right">Unit Cost</th>
-                      <th className="pb-2 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {costs.map((item) => (
-                      <tr key={item.id}>
-                        <td className="py-2.5 font-medium text-slate-900">{item.description}</td>
-                        <td className="py-2.5 text-right font-mono text-slate-600 tabular-nums">{item.quantity}</td>
-                        <td className="py-2.5 text-right font-mono text-slate-600 tabular-nums">{formatCurrency(item.unit_cost)}</td>
-                        <td className="py-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">{formatCurrency(item.line_total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          {/* Notes */}
-          {ticket.notes && (
-            <section className="card p-6">
-              <h2 className="text-sm font-bold text-slate-900">Additional Observations</h2>
-              <p className="mt-2 whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-slate-700">
-                {ticket.notes}
+          <Card flush>
+            <CardHeader
+              title="Labor"
+              description={
+                labourRows.length
+                  ? `${formatHours(labourRows.reduce((sum, row) => sum + Number(row.hours), 0))} hours across ${labourRows.length} ${labourRows.length === 1 ? 'line' : 'lines'}`
+                  : 'No labor recorded on this ticket'
+              }
+              icon={<Clock3 size={16} aria-hidden="true" />}
+              bordered
+              action={
+                <span className="font-mono text-[13px] font-semibold text-ink">
+                  {formatCurrency(totals.labor)}
+                </span>
+              }
+            />
+            {labourRows.length === 0 ? (
+              <p className="px-5 py-6 text-[13px] text-muted sm:px-6">
+                No labor lines were recorded for this ticket.
               </p>
-            </section>
-          )}
+            ) : (
+              <LineItemsTable
+                unitLabel="Hours"
+                rows={labourRows.map((row) => ({
+                  id: row.id,
+                  description: row.worker_name,
+                  quantity: Number(row.hours),
+                  unitCost: Number(row.rate),
+                  total: Number(row.line_total),
+                }))}
+              />
+            )}
+          </Card>
 
-          {/* Photo Evidence Gallery */}
+          <Card flush>
+            <CardHeader
+              title="Materials"
+              description={
+                materialRows.length
+                  ? `${materialRows.length} ${materialRows.length === 1 ? 'line' : 'lines'} of materials and supplies`
+                  : 'No materials recorded on this ticket'
+              }
+              icon={<Package size={16} aria-hidden="true" />}
+              bordered
+              action={
+                <span className="font-mono text-[13px] font-semibold text-ink">
+                  {formatCurrency(totals.materials)}
+                </span>
+              }
+            />
+            {materialRows.length === 0 ? (
+              <p className="px-5 py-6 text-[13px] text-muted sm:px-6">
+                No material lines were recorded for this ticket.
+              </p>
+            ) : (
+              <LineItemsTable
+                unitLabel="Qty"
+                rows={materialRows.map((row) => ({
+                  id: row.id,
+                  description: row.description,
+                  quantity: Number(row.quantity),
+                  unitCost: Number(row.unit_cost),
+                  total: Number(row.line_total),
+                }))}
+              />
+            )}
+          </Card>
+
+          <Card flush>
+            <CardHeader
+              title="Equipment & other costs"
+              description={
+                costRows.length
+                  ? `${costRows.length} ${costRows.length === 1 ? 'line' : 'lines'} of rentals and direct costs`
+                  : 'No equipment or direct costs on this ticket'
+              }
+              icon={<Wrench size={16} aria-hidden="true" />}
+              bordered
+              action={
+                <span className="font-mono text-[13px] font-semibold text-ink">
+                  {formatCurrency(totals.other)}
+                </span>
+              }
+            />
+            {costRows.length === 0 ? (
+              <p className="px-5 py-6 text-[13px] text-muted sm:px-6">
+                No equipment or other cost lines were recorded.
+              </p>
+            ) : (
+              <LineItemsTable
+                unitLabel="Qty"
+                rows={costRows.map((row) => ({
+                  id: row.id,
+                  description: row.description,
+                  quantity: Number(row.quantity),
+                  unitCost: Number(row.unit_cost),
+                  total: Number(row.line_total),
+                }))}
+              />
+            )}
+          </Card>
+
           <EvidencePanel
             companyId={workspace.id}
             projectId={project.id}
@@ -368,135 +437,145 @@ export default async function TicketDetailPage({ params }: Props) {
           />
         </div>
 
-        {/* Sidebar Column */}
-        <aside className="space-y-6">
-          {/* Financial Summary Card */}
-          <div className="rounded-2xl border border-slate-900 bg-slate-900 p-6 text-white shadow-md">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Documented Record Total
-            </p>
-            <p className="mt-2 font-mono text-3xl font-black text-white tabular-nums">
-              {formatCurrency(totals.total)}
-            </p>
-
-            <div className="mt-5 space-y-2 border-t border-slate-800 pt-4 text-xs">
-              <div className="flex justify-between text-slate-300">
-                <span>Labor</span>
-                <span className="font-mono font-semibold">{formatCurrency(totals.labor)}</span>
-              </div>
-              <div className="flex justify-between text-slate-300">
-                <span>Materials</span>
-                <span className="font-mono font-semibold">{formatCurrency(totals.materials)}</span>
-              </div>
-              <div className="flex justify-between text-slate-300">
-                <span>Other Costs</span>
-                <span className="font-mono font-semibold">{formatCurrency(totals.other)}</span>
-              </div>
-            </div>
-
-            <p className="mt-4 text-[10px] leading-relaxed text-slate-400">
-              Calculated from documented field lines. Not an approved invoice or customer payment guarantee.
-            </p>
-          </div>
-
-          {/* Work Context Card */}
-          <div className="card p-5 space-y-4">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Jobsite Context
-            </h2>
-
-            <div className="space-y-3.5 text-xs">
-              <div className="flex gap-2.5">
-                <CalendarDays size={16} className="mt-0.5 shrink-0 text-blue-600" />
-                <div>
-                  <p className="text-slate-400 font-medium">Work Performed</p>
-                  <p className="mt-0.5 font-semibold text-slate-900">
-                    {formatDate(ticket.occurred_at, {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-2.5">
-                <MapPin size={16} className="mt-0.5 shrink-0 text-blue-600" />
-                <div>
-                  <p className="text-slate-400 font-medium">Location / Area</p>
-                  <p className="mt-0.5 font-semibold text-slate-900">
-                    {ticket.location || 'Not specified'}
-                  </p>
-                </div>
-              </div>
-
-              {ticket.gc_representative && (
-                <div className="flex gap-2.5">
-                  <UserRound size={16} className="mt-0.5 shrink-0 text-blue-600" />
-                  <div>
-                    <p className="text-slate-400 font-medium">GC / Customer Representative</p>
-                    <p className="mt-0.5 font-semibold text-slate-900">
-                      {ticket.gc_representative}
-                    </p>
+        {/* Side rail */}
+        <aside className="space-y-6 lg:sticky lg:top-20">
+          <Card flush>
+            <div className="p-5">
+              <h2 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-subtle">
+                Documented total
+              </h2>
+              <p className="mt-2 font-mono text-[1.75rem] font-semibold leading-none tracking-[-0.02em] text-ink">
+                {formatCurrency(totals.total)}
+              </p>
+              <dl className="mt-4 space-y-2 border-t border-line pt-4 text-[13px]">
+                {[
+                  ['Labor', totals.labor, labourRows.length],
+                  ['Materials', totals.materials, materialRows.length],
+                  ['Equipment & other', totals.other, costRows.length],
+                ].map(([label, value, count]) => (
+                  <div key={label as string} className="flex items-baseline justify-between gap-3">
+                    <dt className="text-muted">
+                      {label as string}
+                      <span className="ml-1.5 text-[11px] text-faint">({count as number})</span>
+                    </dt>
+                    <dd className="font-mono font-medium text-body tabular-nums">
+                      {formatCurrency(value as number)}
+                    </dd>
                   </div>
-                </div>
-              )}
+                ))}
+              </dl>
+              <p className="mt-4 border-t border-line pt-3 text-[11.5px] leading-5 text-subtle">
+                Calculated from the field entries on this ticket. Not an approved invoice, and not a
+                guarantee of payment.
+              </p>
+            </div>
+          </Card>
 
-              <div className="border-t border-slate-100 pt-3">
-                <p className="text-slate-400 font-medium">Project</p>
-                <Link
-                  href={`/projects/${project.id}`}
-                  className="mt-0.5 inline-block font-bold text-blue-600 hover:underline"
-                >
-                  {project.name}
-                </Link>
-                {project.site_address && (
-                  <p className="mt-1 text-[11px] text-slate-500">{project.site_address}</p>
-                )}
+          <Card flush>
+            <CardHeader title="Jobsite context" bordered />
+            {/* Each <div> is a legal <dl> group and holds exactly one <dt>/<dd> pair. */}
+            <dl className="divide-y divide-line">
+              <div className="px-5 py-3.5">
+                <dt className="flex items-center gap-2.5 text-[12px] text-subtle">
+                  <CalendarDays size={15} className="shrink-0" aria-hidden="true" />
+                  Work performed
+                </dt>
+                <dd className="mt-1 pl-[26px] text-[13px] font-medium text-ink">
+                  {formatDate(ticket.occurred_at, {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </dd>
+              </div>
+              <div className="px-5 py-3.5">
+                <dt className="flex items-center gap-2.5 text-[12px] text-subtle">
+                  <MapPin size={15} className="shrink-0" aria-hidden="true" />
+                  Area / location
+                </dt>
+                <dd className="mt-1 pl-[26px] text-[13px] font-medium text-ink">
+                  {ticket.location || 'Not recorded'}
+                </dd>
+              </div>
+              <div className="px-5 py-3.5">
+                <dt className="flex items-center gap-2.5 text-[12px] text-subtle">
+                  <UserRound size={15} className="shrink-0" aria-hidden="true" />
+                  Directed / verified by
+                </dt>
+                <dd className="mt-1 pl-[26px] text-[13px] font-medium text-ink">
+                  {ticket.gc_representative || 'Not recorded'}
+                </dd>
+              </div>
+              <div className="px-5 py-3.5">
+                <dt className="flex items-center gap-2.5 text-[12px] text-subtle">
+                  <FileText size={15} className="shrink-0" aria-hidden="true" />
+                  Project
+                </dt>
+                <dd className="mt-1 pl-[26px] text-[13px] font-medium text-ink">
+                  <Link href={`/projects/${project.id}`} className="link">
+                    {project.name}
+                  </Link>
+                </dd>
                 {project.general_contractor && (
-                  <p className="mt-0.5 text-[11px] text-slate-500">
-                    GC: {project.general_contractor}
-                  </p>
+                  <dd className="mt-1 pl-[26px] text-[12px] text-muted">GC: {project.general_contractor}</dd>
+                )}
+                {project.site_address && (
+                  <dd className="mt-0.5 pl-[26px] text-[12px] text-muted">{project.site_address}</dd>
                 )}
               </div>
-            </div>
-          </div>
+            </dl>
+          </Card>
 
-          {/* Record History */}
-          <div className="card p-5 text-xs text-slate-500 space-y-2">
-            <h2 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Audit Record
-            </h2>
-            <p>
-              Created:{' '}
-              <span className="font-semibold text-slate-700">
-                {formatDate(ticket.created_at, {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}
-              </span>
+          <Card flush>
+            <CardHeader title="Record history" bordered />
+            <dl className="px-5 py-4 text-[12.5px]">
+              <div className="flex justify-between gap-3 py-1">
+                <dt className="text-muted">Created</dt>
+                <dd className="font-medium text-body">
+                  {formatDate(ticket.created_at, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3 py-1">
+                <dt className="text-muted">Last updated</dt>
+                <dd className="font-medium text-body">
+                  {formatDate(ticket.updated_at, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3 py-1">
+                <dt className="text-muted">Editing access</dt>
+                <dd className="font-medium text-body">{canEdit ? 'You can edit' : 'Creator only'}</dd>
+              </div>
+            </dl>
+            {/* A <dl> may only group <dt>/<dd> pairs, so the footnote sits outside it. */}
+            <p className="border-t border-line px-5 pb-4 pt-3 text-[11.5px] leading-5 text-subtle">
+              Records are isolated per company in Postgres through row-level security.
             </p>
-            <p>
-              Last Updated:{' '}
-              <span className="font-semibold text-slate-700">
-                {formatDate(ticket.updated_at, {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}
-              </span>
-            </p>
-            <p className="pt-2 text-[11px] leading-relaxed border-t border-slate-100">
-              All modifications are company-isolated in PostgreSQL via RLS security policies.
-            </p>
-          </div>
+          </Card>
+
+          {canEdit && !project.is_archived && (
+            <ButtonLink
+              href={`/tickets/new?projectId=${project.id}`}
+              variant="secondary"
+              className="w-full"
+            >
+              <Plus size={15} aria-hidden="true" />
+              Add another ticket for this job
+            </ButtonLink>
+          )}
         </aside>
       </div>
     </div>

@@ -1,22 +1,20 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useActionState } from 'react';
-import {
-  Plus,
-  Trash2,
-  LoaderCircle,
-  Info,
-  AlertCircle,
-} from 'lucide-react';
+import { Clock3, Package, Plus, Trash2, Wrench } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/button';
+import { Alert } from '@/components/ui/alert';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { saveTicketAction, type TicketActionState } from '@/lib/actions/tickets';
-import { calculateTicketTotals, laborLineTotal, costLineTotal } from '@/lib/tickets/totals';
+import { calculateTicketTotals, costLineTotal, laborLineTotal } from '@/lib/tickets/totals';
 import { formatCurrency, formatDateTimeLocal } from '@/lib/utils';
 import { ticketStatusOptions } from '@/lib/tickets/status';
+import { cn } from '@/lib/utils';
 
-type LaborDraft = { worker_name: string; hours: string; rate: string };
-type CostDraft = { description: string; quantity: string; unit_cost: string };
+type LaborDraft = { key: string; worker_name: string; hours: string; rate: string };
+type CostDraft = { key: string; description: string; quantity: string; unit_cost: string };
 
 export type TicketEditorData = {
   id?: string;
@@ -30,7 +28,233 @@ export type TicketEditorData = {
   notes?: string | null;
 };
 
-const commonRoles = ['Journeyman', 'Apprentice', 'Foreman', 'Master Electrician', 'Helper'];
+const commonRoles = ['Journeyman', 'Apprentice', 'Foreman', 'Master electrician', 'Helper'];
+const commonEquipment = ['Scissor lift', 'Boom lift', 'Core drilling', 'Disposal fee', 'Test equipment'];
+
+/**
+ * Row keys must be identical on the server and on the first client render or
+ * React throws a hydration mismatch and every label points at the wrong input.
+ * Initial rows therefore use deterministic keys, and keys for rows the user
+ * adds later come from a client-only counter (those rows never render on the
+ * server).
+ */
+function blankLabor(key: string): LaborDraft {
+  return { key, worker_name: '', hours: '', rate: '' };
+}
+
+function blankCost(key: string): CostDraft {
+  return { key, description: '', quantity: '', unit_cost: '' };
+}
+
+function toNumber(value: string) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+const sections = [
+  { id: 'details', label: 'Work details' },
+  { id: 'labor', label: 'Labor' },
+  { id: 'materials', label: 'Materials' },
+  { id: 'equipment', label: 'Equipment' },
+  { id: 'review', label: 'Review & save' },
+] as const;
+
+/** Shared chrome for each numbered section of the ticket. */
+function Section({
+  id,
+  index,
+  title,
+  description,
+  icon,
+  aside,
+  children,
+}: {
+  id: string;
+  index: number;
+  title: string;
+  description: string;
+  icon?: React.ReactNode;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card as="section" flush id={id} className="scroll-mt-24">
+      <CardHeader
+        title={
+          <span className="flex items-center gap-2">
+            <span className="grid h-5 w-5 place-items-center rounded-md bg-surface-3 font-mono text-[11px] font-semibold text-body">
+              {index}
+            </span>
+            {title}
+          </span>
+        }
+        description={description}
+        icon={icon}
+        bordered
+        action={aside}
+      />
+      <div className="p-5 sm:p-6">{children}</div>
+    </Card>
+  );
+}
+
+/** Editable list of cost lines — shared by materials and equipment sections. */
+function CostLines({
+  rows,
+  setRows,
+  baseId,
+  descriptionLabel,
+  descriptionPlaceholder,
+  quantityLabel,
+  unitLabel,
+  emptyText,
+  suggestions,
+  addLabel,
+}: {
+  rows: CostDraft[];
+  setRows: React.Dispatch<React.SetStateAction<CostDraft[]>>;
+  baseId: string;
+  descriptionLabel: string;
+  descriptionPlaceholder: string;
+  quantityLabel: string;
+  unitLabel: string;
+  emptyText: string;
+  suggestions?: string[];
+  addLabel: string;
+}) {
+  // Client-only counter: rows created here never render on the server, so the
+  // keys stay hydration-safe while remaining unique.
+  const addedRows = useRef(0);
+
+  function update(key: string, patch: Partial<CostDraft>) {
+    setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.length === 0 && (
+        <p className="rounded-lg border border-dashed border-line-strong bg-surface-2/60 px-4 py-6 text-center text-[13px] text-muted">
+          {emptyText}
+        </p>
+      )}
+
+      {rows.map((row, index) => {
+        const lineTotal = costLineTotal({
+          quantity: toNumber(row.quantity),
+          unit_cost: toNumber(row.unit_cost),
+        });
+        return (
+          <div
+            key={row.key}
+            className="rounded-xl border border-line bg-surface-2/40 p-4 transition-colors duration-150 focus-within:border-brand-300 focus-within:bg-surface"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-subtle">
+                Line {index + 1}
+              </span>
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-[13px] font-semibold text-ink tabular-nums">
+                  {formatCurrency(lineTotal)}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  iconOnly
+                  onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}
+                  aria-label={`Remove line ${index + 1}`}
+                  title="Remove this line"
+                  className="text-subtle hover:bg-danger-soft hover:text-danger"
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,0.8fr)]">
+              <Field id={`${baseId}-desc-${row.key}`} label={descriptionLabel} required>
+                {(props) => (
+                  <Input
+                    {...props}
+                    value={row.description}
+                    onChange={(event) => update(row.key, { description: event.target.value })}
+                    maxLength={240}
+                    placeholder={descriptionPlaceholder}
+                    enterKeyHint="next"
+                  />
+                )}
+              </Field>
+
+              <Field id={`${baseId}-qty-${row.key}`} label={quantityLabel} required>
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="number"
+                    inputMode="decimal"
+                    min="0.001"
+                    max="1000000"
+                    step="0.001"
+                    value={row.quantity}
+                    onChange={(event) => update(row.key, { quantity: event.target.value })}
+                    placeholder="0"
+                    className="text-right font-mono tabular-nums"
+                  />
+                )}
+              </Field>
+
+              <Field id={`${baseId}-cost-${row.key}`} label={unitLabel} required>
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    max="1000000"
+                    step="0.01"
+                    value={row.unit_cost}
+                    onChange={(event) => update(row.key, { unit_cost: event.target.value })}
+                    placeholder="0.00"
+                    className="text-right font-mono tabular-nums"
+                  />
+                )}
+              </Field>
+            </div>
+
+            {suggestions && index >= 0 && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => update(row.key, { description: suggestion })}
+                    className="rounded-md border border-line bg-surface px-2 py-0.5 text-[11.5px] font-medium text-muted transition-colors duration-150 hover:border-line-strong hover:text-ink"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={() =>
+          setRows((current) => {
+            addedRows.current += 1;
+            return [...current, blankCost(`${baseId}-new-${addedRows.current}`)];
+          })
+        }
+        className="w-full border-dashed"
+      >
+        <Plus size={15} aria-hidden="true" />
+        {addLabel}
+      </Button>
+    </div>
+  );
+}
 
 export function TicketEditor({
   projects,
@@ -46,8 +270,14 @@ export function TicketEditor({
   costs?: Array<{ description: string; quantity: number; unit_cost: number }>;
 }) {
   const [state, formAction, pending] = useActionState(saveTicketAction, {} as TicketActionState);
+  const uid = useId();
+  const addedRows = useRef(0);
+  function nextRowKey(prefix: string) {
+    addedRows.current += 1;
+    return `${prefix}-new-${addedRows.current}`;
+  }
+  const errorRef = useRef<HTMLDivElement>(null);
 
-  // Default occurred_at to now or provided date
   const [occurredAt, setOccurredAt] = useState('');
   useEffect(() => {
     setOccurredAt(formatDateTimeLocal(ticket?.occurred_at));
@@ -58,790 +288,590 @@ export function TicketEditor({
     return occurredAt && !Number.isNaN(date.getTime()) ? date.toISOString() : '';
   }, [occurredAt]);
 
-  const [labor, setLabor] = useState<LaborDraft[]>(
-    initialLabor.length > 0
-      ? initialLabor.map((row) => ({
+  const [laborRows, setLaborRows] = useState<LaborDraft[]>(() =>
+    initialLabor.length
+      ? initialLabor.map((row, index) => ({
+          key: `labor-${index}`,
           worker_name: row.worker_name,
           hours: String(row.hours),
           rate: String(row.rate),
         }))
-      : [{ worker_name: '', hours: '', rate: '' }]
+      : [blankLabor('labor-0')]
   );
 
-  const [materials, setMaterials] = useState<CostDraft[]>(
-    initialMaterials.length > 0
-      ? initialMaterials.map((row) => ({
-          description: row.description,
-          quantity: String(row.quantity),
-          unit_cost: String(row.unit_cost),
-        }))
-      : []
+  const [materialRows, setMaterialRows] = useState<CostDraft[]>(() =>
+    initialMaterials.map((row, index) => ({
+      key: `material-${index}`,
+      description: row.description,
+      quantity: String(row.quantity),
+      unit_cost: String(row.unit_cost),
+    }))
   );
 
-  const [costs, setCosts] = useState<CostDraft[]>(
-    initialCosts.length > 0
-      ? initialCosts.map((row) => ({
-          description: row.description,
-          quantity: String(row.quantity),
-          unit_cost: String(row.unit_cost),
-        }))
-      : []
+  const [costRows, setCostRows] = useState<CostDraft[]>(() =>
+    initialCosts.map((row, index) => ({
+      key: `cost-${index}`,
+      description: row.description,
+      quantity: String(row.quantity),
+      unit_cost: String(row.unit_cost),
+    }))
   );
 
-  const [isDirty, setIsDirty] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
-  // Unsaved changes alert
+  // Warn before leaving with unsaved edits (browser-visible protection).
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty && !pending) {
-        e.preventDefault();
-        e.returnValue = '';
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      if (dirty && !pending) {
+        event.preventDefault();
+        event.returnValue = '';
       }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isDirty, pending]);
+    }
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [dirty, pending]);
 
-  // Live Totals
-  const totals = useMemo(
-    () =>
-      calculateTicketTotals({
-        labor: labor
-          .filter((row) => row.worker_name || row.hours || row.rate)
-          .map((row) => ({ hours: Number(row.hours) || 0, rate: Number(row.rate) || 0 })),
-        materials: materials
-          .filter((row) => row.description || row.quantity || row.unit_cost)
-          .map((row) => ({ quantity: Number(row.quantity) || 0, unit_cost: Number(row.unit_cost) || 0 })),
-        costs: costs
-          .filter((row) => row.description || row.quantity || row.unit_cost)
-          .map((row) => ({ quantity: Number(row.quantity) || 0, unit_cost: Number(row.unit_cost) || 0 })),
-      }),
-    [labor, materials, costs]
+  // Surface server-side validation failures where the eye already is.
+  useEffect(() => {
+    if (state.error) {
+      errorRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      errorRef.current?.focus();
+    }
+  }, [state.error]);
+
+  const describedLabor = laborRows.filter(
+    (row) => row.worker_name.trim() || row.hours || row.rate
+  );
+  const describedMaterials = materialRows.filter(
+    (row) => row.description.trim() || row.quantity || row.unit_cost
+  );
+  const describedCosts = costRows.filter(
+    (row) => row.description.trim() || row.quantity || row.unit_cost
   );
 
-  const jsonLabor = labor
-    .filter((row) => row.worker_name.trim() || row.hours || row.rate)
-    .map((row) => ({ worker_name: row.worker_name.trim(), hours: row.hours, rate: row.rate }));
-  const jsonMaterials = materials
-    .filter((row) => row.description.trim() || row.quantity || row.unit_cost)
-    .map((row) => ({ description: row.description.trim(), quantity: row.quantity, unit_cost: row.unit_cost }));
-  const jsonCosts = costs
-    .filter((row) => row.description.trim() || row.quantity || row.unit_cost)
-    .map((row) => ({ description: row.description.trim(), quantity: row.quantity, unit_cost: row.unit_cost }));
+  // Recalculated on every keystroke; the arithmetic is intentionally cheap and
+  // shares the exact helpers used for saving, the detail page and the PDF.
+  const totals = calculateTicketTotals({
+    labor: describedLabor.map((row) => ({
+      hours: toNumber(row.hours),
+      rate: toNumber(row.rate),
+    })),
+    materials: describedMaterials.map((row) => ({
+      quantity: toNumber(row.quantity),
+      unit_cost: toNumber(row.unit_cost),
+    })),
+    costs: describedCosts.map((row) => ({
+      quantity: toNumber(row.quantity),
+      unit_cost: toNumber(row.unit_cost),
+    })),
+  });
+
+  const laborHours = describedLabor.reduce((sum, row) => sum + toNumber(row.hours), 0);
+  const lineCount = describedLabor.length + describedMaterials.length + describedCosts.length;
+
+  const payload = {
+    labor: describedLabor.map((row) => ({
+      worker_name: row.worker_name.trim(),
+      hours: row.hours,
+      rate: row.rate,
+    })),
+    materials: describedMaterials.map((row) => ({
+      description: row.description.trim(),
+      quantity: row.quantity,
+      unit_cost: row.unit_cost,
+    })),
+    costs: describedCosts.map((row) => ({
+      description: row.description.trim(),
+      quantity: row.quantity,
+      unit_cost: row.unit_cost,
+    })),
+  };
+
+  const saveLabel = ticket ? 'Save changes' : 'Create work ticket';
+  const cancelHref = ticket?.id ? `/tickets/${ticket.id}` : '/tickets';
 
   return (
     <form
       action={formAction}
-      onSubmit={() => setIsDirty(false)}
-      onChange={() => setIsDirty(true)}
-      className="space-y-6 pb-24"
+      onChange={() => setDirty(true)}
+      onSubmit={() => setDirty(false)}
+      className="pb-24 lg:pb-0"
     >
       {ticket?.id && <input type="hidden" name="id" value={ticket.id} />}
       <input type="hidden" name="occurred_at" value={occurredAtIso} />
-      <input type="hidden" name="labor" value={JSON.stringify(jsonLabor)} />
-      <input type="hidden" name="materials" value={JSON.stringify(jsonMaterials)} />
-      <input type="hidden" name="costs" value={JSON.stringify(jsonCosts)} />
+      <input type="hidden" name="labor" value={JSON.stringify(payload.labor)} />
+      <input type="hidden" name="materials" value={JSON.stringify(payload.materials)} />
+      <input type="hidden" name="costs" value={JSON.stringify(payload.costs)} />
+
+      {/* Section jump bar */}
+      <nav aria-label="Ticket sections" className="mb-5 flex gap-1.5 overflow-x-auto pb-1">
+        {sections.map((section, index) => (
+          <a
+            key={section.id}
+            href={`#${section.id}`}
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-[12.5px] font-medium text-body shadow-xs transition-colors duration-150 hover:border-line-strong hover:text-ink"
+          >
+            <span className="font-mono text-[11px] text-faint">{index + 1}</span>
+            {section.label}
+          </a>
+        ))}
+      </nav>
 
       {state.error && (
-        <div
-          className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800 shadow-xs"
-          role="alert"
-        >
-          <div className="flex items-center gap-2">
-            <AlertCircle size={16} className="text-rose-600 shrink-0" />
-            <span>{state.error}</span>
-          </div>
+        <div ref={errorRef} tabIndex={-1} className="mb-5 outline-none">
+          <Alert tone="danger" role="alert" title="This ticket was not saved">
+            {state.error}
+          </Alert>
         </div>
       )}
 
-      {/* SECTION A — WORK DETAILS */}
-      <section className="card p-6 sm:p-7">
-        <div className="mb-5 border-b border-slate-100 pb-4">
-          <p className="eyebrow">Section A · Work Details</p>
-          <h2 className="mt-1 text-lg font-bold text-slate-900">What happened on the jobsite?</h2>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Document the location, crew observation, and direction received from the customer or general contractor.
-          </p>
-        </div>
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          {/* Project */}
-          <div className="sm:col-span-2">
-            <label className="field-label" htmlFor="project_id">
-              Project <span className="text-blue-600">*</span>
-            </label>
-            <select
-              className="field-control"
-              id="project_id"
-              name="project_id"
-              required
-              defaultValue={ticket?.project_id || ''}
-            >
-              <option value="" disabled>
-                Select active project...
-              </option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name} {project.project_number ? `(${project.project_number})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Date & Time */}
-          <div>
-            <label className="field-label" htmlFor="occurred_at">
-              Date & Time Performed <span className="text-blue-600">*</span>
-            </label>
-            <input
-              className="field-control"
-              id="occurred_at"
-              name="occurred_at_local"
-              type="datetime-local"
-              required
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-            />
-          </div>
-
-          {/* Location / Area */}
-          <div>
-            <label className="field-label" htmlFor="location">
-              Jobsite Location / Area
-            </label>
-            <input
-              className="field-control"
-              id="location"
-              name="location"
-              maxLength={250}
-              defaultValue={ticket?.location || ''}
-              placeholder="e.g. 3rd Floor East Wing, Room 304, Electrical Closet B"
-            />
-          </div>
-
-          {/* Extra Work Description */}
-          <div className="sm:col-span-2">
-            <label className="field-label" htmlFor="description">
-              Extra Work Description <span className="text-blue-600">*</span>
-            </label>
-            <textarea
-              className="field-control min-h-32 resize-y"
-              id="description"
-              name="description"
-              required
-              maxLength={12000}
-              placeholder="Describe the exact work performed by your crew, including unexpected field conditions, changes from drawings, and materials relocated..."
-              defaultValue={ticket?.description || ''}
-            />
-            <p className="field-hint">
-              Be precise. Clear field descriptions eliminate disputes when customer reviews ticket records.
-            </p>
-          </div>
-
-          {/* Reason Outside Original Scope */}
-          <div className="sm:col-span-2">
-            <label className="field-label" htmlFor="out_of_scope_reason">
-              Reason Outside Original Scope
-            </label>
-            <textarea
-              className="field-control min-h-24 resize-y"
-              id="out_of_scope_reason"
-              name="out_of_scope_reason"
-              maxLength={6000}
-              placeholder="e.g. Existing HVAC duct conflict not shown on electrical contract drawings E-201. Verbal direction by GC superintendent John Doe to reroute conduit through chase."
-              defaultValue={ticket?.out_of_scope_reason || ''}
-            />
-            <p className="field-hint">
-              Explain why this work is outside the base contract and warrants documented time and material tracking.
-            </p>
-          </div>
-
-          {/* GC / Customer Rep */}
-          <div>
-            <label className="field-label" htmlFor="gc_representative">
-              Customer / GC Representative
-            </label>
-            <input
-              className="field-control"
-              id="gc_representative"
-              name="gc_representative"
-              maxLength={180}
-              defaultValue={ticket?.gc_representative || ''}
-              placeholder="e.g. John Doe (Superintendent)"
-            />
-            <p className="field-hint">Name of person who directed or verified the work.</p>
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="field-label" htmlFor="status">
-              Tracking Status
-            </label>
-            <select
-              className="field-control"
-              id="status"
-              name="status"
-              defaultValue={ticket?.status || 'draft'}
-            >
-              {ticketStatusOptions.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
-            <p className="field-hint">Internal workflow tracking stage.</p>
-          </div>
-
-          {/* Additional Notes */}
-          <div className="sm:col-span-2">
-            <label className="field-label" htmlFor="notes">
-              Additional Field Notes
-            </label>
-            <textarea
-              className="field-control min-h-20 resize-y"
-              id="notes"
-              name="notes"
-              maxLength={12000}
-              placeholder="Safety considerations, weather, standby time, or other relevant observations..."
-              defaultValue={ticket?.notes || ''}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION B — LABOR */}
-      <section className="card p-6 sm:p-7">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div>
-            <p className="eyebrow">Section B · Labor</p>
-            <h2 className="mt-1 text-lg font-bold text-slate-900">Crew Time & Rates</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Record workers or job classifications, hours, and standard hourly rates.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              setLabor((rows) => [...rows, { worker_name: '', hours: '', rate: '' }])
-            }
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-blue-600 shadow-xs hover:bg-slate-50 transition"
+      <div className="space-y-5 lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-6 lg:space-y-0">
+        {/* -------- Editing column -------- */}
+        <div className="space-y-5">
+          <Section
+            id="details"
+            index={1}
+            title="Work details"
+            description="What happened, where, and who directed it."
           >
-            <Plus size={14} /> Add Worker / Role
-          </button>
-        </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field
+                id={`${uid}-project`}
+                label="Project"
+                required
+                className="sm:col-span-2"
+                hint="Only active projects can receive new tickets."
+              >
+                {(props) => (
+                  <Select {...props} name="project_id" required defaultValue={ticket?.project_id ?? ''}>
+                    <option value="" disabled>
+                      Select a project…
+                    </option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                        {project.project_number ? ` — ${project.project_number}` : ''}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
 
-        {labor.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
-            No labor entries added yet. Click &ldquo;Add Worker / Role&rdquo; to track hours.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {labor.map((row, index) => {
-              const lineTotal = laborLineTotal({
-                hours: Number(row.hours) || 0,
-                rate: Number(row.rate) || 0,
-              });
-              return (
-                <div
-                  key={`labor-${index}`}
-                  className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 transition hover:border-slate-300"
-                >
-                  <div className="flex items-center justify-between text-xs text-slate-500 pb-2">
-                    <span className="font-bold text-slate-700">Line {index + 1}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono font-bold text-slate-900">
-                        Line: {formatCurrency(lineTotal)}
+              <Field
+                id={`${uid}-occurred`}
+                label="Date &amp; time performed"
+                required
+                hint="Defaults to now. Adjust it if the work happened earlier."
+              >
+                {(props) => (
+                  <Input
+                    {...props}
+                    id={`${uid}-occurred`}
+                    name="occurred_at_local"
+                    type="datetime-local"
+                    required
+                    value={occurredAt}
+                    onChange={(event) => setOccurredAt(event.target.value)}
+                  />
+                )}
+              </Field>
+
+              <Field id={`${uid}-location`} label="Jobsite area" optional>
+                {(props) => (
+                  <Input
+                    {...props}
+                    name="location"
+                    maxLength={250}
+                    defaultValue={ticket?.location ?? ''}
+                    placeholder="Level 3 East, Room 304, Panel B"
+                  />
+                )}
+              </Field>
+
+              <Field
+                id={`${uid}-description`}
+                label="Extra work description"
+                required
+                className="sm:col-span-2"
+                hint="Exactly what the crew did, including the field condition that caused it."
+              >
+                {(props) => (
+                  <Textarea
+                    {...props}
+                    name="description"
+                    required
+                    rows={5}
+                    maxLength={12000}
+                    defaultValue={ticket?.description ?? ''}
+                    placeholder="Rerouted four 4-inch EMT feeder runs around an unmapped HVAC supply duct discovered during rough-in…"
+                  />
+                )}
+              </Field>
+
+              <Field
+                id={`${uid}-scope`}
+                label="Reason outside original scope"
+                optional
+                className="sm:col-span-2"
+                hint="Why this work is not covered by the base contract — drawing numbers, verbal direction, site conditions."
+              >
+                {(props) => (
+                  <Textarea
+                    {...props}
+                    name="out_of_scope_reason"
+                    rows={3}
+                    maxLength={6000}
+                    defaultValue={ticket?.out_of_scope_reason ?? ''}
+                    placeholder="Duct conflict was not shown on electrical drawings E-201. Directed by GC superintendent on site."
+                  />
+                )}
+              </Field>
+
+              <Field id={`${uid}-rep`} label="Directed / verified by" optional>
+                {(props) => (
+                  <Input
+                    {...props}
+                    name="gc_representative"
+                    maxLength={180}
+                    defaultValue={ticket?.gc_representative ?? ''}
+                    placeholder="J. Doe — Superintendent"
+                    autoComplete="off"
+                  />
+                )}
+              </Field>
+
+              <Field
+                id={`${uid}-status`}
+                label="Tracking status"
+                hint="Your team’s internal workflow label."
+              >
+                {(props) => (
+                  <Select {...props} name="status" defaultValue={ticket?.status ?? 'draft'}>
+                    {ticketStatusOptions.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+
+              <Field
+                id={`${uid}-notes`}
+                label="Additional observations"
+                optional
+                className="sm:col-span-2"
+                hint="Weather, site access, standby time or anything a reviewer should know."
+              >
+                {(props) => (
+                  <Textarea
+                    {...props}
+                    name="notes"
+                    rows={2}
+                    maxLength={12000}
+                    defaultValue={ticket?.notes ?? ''}
+                    placeholder="Scissor lift required for access above the corridor grid."
+                  />
+                )}
+              </Field>
+            </div>
+          </Section>
+
+          <Section
+            id="labor"
+            index={2}
+            title="Labor"
+            description="Crew hours and the rate applied to each line."
+            icon={<Clock3 size={16} aria-hidden="true" />}
+            aside={
+              <div className="text-right">
+                <p className="font-mono text-[13px] font-semibold text-ink">
+                  {formatCurrency(totals.labor)}
+                </p>
+                <p className="text-[11px] text-subtle">
+                  {laborHours ? `${Number(laborHours.toFixed(2))} hrs` : 'No hours yet'}
+                </p>
+              </div>
+            }
+          >
+            <div className="space-y-3">
+              {laborRows.map((row, index) => {
+                const lineTotal = laborLineTotal({
+                  hours: toNumber(row.hours),
+                  rate: toNumber(row.rate),
+                });
+                return (
+                  <div
+                    key={row.key}
+                    className="rounded-xl border border-line bg-surface-2/40 p-4 transition-colors duration-150 focus-within:border-brand-300 focus-within:bg-surface"
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-subtle">
+                        Line {index + 1}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setLabor((rows) => rows.filter((_, i) => i !== index))}
-                        aria-label={`Remove labor line ${index + 1}`}
-                        className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-[1.5fr_0.8fr_0.8fr]">
-                    <div>
-                      <label
-                        className="field-label text-[11px]"
-                        htmlFor={`labor-name-${index}`}
-                      >
-                        Worker / Role <span className="text-blue-600">*</span>
-                      </label>
-                      <input
-                        id={`labor-name-${index}`}
-                        className="field-control min-h-9 px-3 py-1.5 text-xs sm:text-sm"
-                        required
-                        maxLength={160}
-                        value={row.worker_name}
-                        onChange={(e) =>
-                          setLabor((rows) =>
-                            rows.map((item, i) =>
-                              i === index ? { ...item, worker_name: e.target.value } : item
-                            )
-                          )
-                        }
-                        placeholder="e.g. Journeyman Electrician"
-                      />
-                      {/* Quick Role Suggestions */}
-                      <div className="mt-1.5 flex flex-wrap gap-1">
-                        {commonRoles.map((role) => (
-                          <button
-                            key={role}
-                            type="button"
-                            onClick={() =>
-                              setLabor((rows) =>
-                                rows.map((item, i) =>
-                                  i === index ? { ...item, worker_name: role } : item
-                                )
-                              )
-                            }
-                            className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-100 hover:text-slate-900"
-                          >
-                            + {role}
-                          </button>
-                        ))}
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-[13px] font-semibold text-ink tabular-nums">
+                          {formatCurrency(lineTotal)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          iconOnly
+                          onClick={() =>
+                            setLaborRows((current) => current.filter((item) => item.key !== row.key))
+                          }
+                          aria-label={`Remove labor line ${index + 1}`}
+                          title="Remove this line"
+                          className="text-subtle hover:bg-danger-soft hover:text-danger"
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                        </Button>
                       </div>
                     </div>
 
-                    <div>
-                      <label
-                        className="field-label text-[11px]"
-                        htmlFor={`labor-hours-${index}`}
-                      >
-                        Hours <span className="text-blue-600">*</span>
-                      </label>
-                      <input
-                        id={`labor-hours-${index}`}
-                        className="field-control min-h-9 px-3 py-1.5 text-xs sm:text-sm font-mono"
-                        type="number"
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,0.8fr)]">
+                      <Field
+                        id={`${uid}-labor-name-${row.key}`}
+                        label="Worker or role"
                         required
-                        min="0.01"
-                        max="10000"
-                        step="0.01"
-                        value={row.hours}
-                        onChange={(e) =>
-                          setLabor((rows) =>
-                            rows.map((item, i) =>
-                              i === index ? { ...item, hours: e.target.value } : item
-                            )
-                          )
-                        }
-                        placeholder="0.00"
-                      />
+                      >
+                        {(props) => (
+                          <Input
+                            {...props}
+                            value={row.worker_name}
+                            maxLength={160}
+                            onChange={(event) =>
+                              setLaborRows((current) =>
+                                current.map((item) =>
+                                  item.key === row.key
+                                    ? { ...item, worker_name: event.target.value }
+                                    : item
+                                )
+                              )
+                            }
+                            placeholder="Journeyman electrician"
+                          />
+                        )}
+                      </Field>
+
+                      <Field id={`${uid}-labor-hours-${row.key}`} label="Hours" required>
+                        {(props) => (
+                          <Input
+                            {...props}
+                            type="number"
+                            inputMode="decimal"
+                            min="0.01"
+                            max="10000"
+                            step="0.25"
+                            value={row.hours}
+                            onChange={(event) =>
+                              setLaborRows((current) =>
+                                current.map((item) =>
+                                  item.key === row.key ? { ...item, hours: event.target.value } : item
+                                )
+                              )
+                            }
+                            placeholder="0"
+                            className="text-right font-mono tabular-nums"
+                          />
+                        )}
+                      </Field>
+
+                      <Field id={`${uid}-labor-rate-${row.key}`} label="Rate ($/hr)" required>
+                        {(props) => (
+                          <Input
+                            {...props}
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            max="1000000"
+                            step="0.01"
+                            value={row.rate}
+                            onChange={(event) =>
+                              setLaborRows((current) =>
+                                current.map((item) =>
+                                  item.key === row.key ? { ...item, rate: event.target.value } : item
+                                )
+                              )
+                            }
+                            placeholder="0.00"
+                            className="text-right font-mono tabular-nums"
+                          />
+                        )}
+                      </Field>
                     </div>
 
-                    <div>
-                      <label
-                        className="field-label text-[11px]"
-                        htmlFor={`labor-rate-${index}`}
-                      >
-                        Rate ($ / hr) <span className="text-blue-600">*</span>
-                      </label>
-                      <input
-                        id={`labor-rate-${index}`}
-                        className="field-control min-h-9 px-3 py-1.5 text-xs sm:text-sm font-mono"
-                        type="number"
-                        required
-                        min="0"
-                        max="1000000"
-                        step="0.01"
-                        value={row.rate}
-                        onChange={(e) =>
-                          setLabor((rows) =>
-                            rows.map((item, i) =>
-                              i === index ? { ...item, rate: e.target.value } : item
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      {commonRoles.map((role) => (
+                        <button
+                          key={role}
+                          type="button"
+                          onClick={() =>
+                            setLaborRows((current) =>
+                              current.map((item) =>
+                                item.key === row.key ? { ...item, worker_name: role } : item
+                              )
                             )
-                          )
-                        }
-                        placeholder="0.00"
-                      />
+                          }
+                          className={cn(
+                            'rounded-md border px-2 py-0.5 text-[11.5px] font-medium transition-colors duration-150',
+                            row.worker_name === role
+                              ? 'border-brand-line bg-brand-50 text-brand-800'
+                              : 'border-line bg-surface text-muted hover:border-line-strong hover:text-ink'
+                          )}
+                        >
+                          {role}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
 
-        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-          <span className="font-semibold text-slate-500">Labor Subtotal</span>
-          <span className="font-mono text-sm font-bold text-slate-900 tabular-nums">
-            {formatCurrency(totals.labor)}
-          </span>
-        </div>
-      </section>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setLaborRows((current) => [...current, blankLabor(nextRowKey('labor'))])}
+                className="w-full border-dashed"
+              >
+                <Plus size={15} aria-hidden="true" />
+                Add worker or role
+              </Button>
+            </div>
+          </Section>
 
-      {/* SECTION C — MATERIALS */}
-      <section className="card p-6 sm:p-7">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div>
-            <p className="eyebrow">Section C · Materials</p>
-            <h2 className="mt-1 text-lg font-bold text-slate-900">Materials & Supplies</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Document conduit, wire, fittings, boxes, and fasteners installed during extra work.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              setMaterials((rows) => [...rows, { description: '', quantity: '', unit_cost: '' }])
+          <Section
+            id="materials"
+            index={3}
+            title="Materials &amp; supplies"
+            description="Conduit, wire, fittings, boxes and fasteners consumed by the extra work."
+            icon={<Package size={16} aria-hidden="true" />}
+            aside={
+              <div className="text-right">
+                <p className="font-mono text-[13px] font-semibold text-ink">
+                  {formatCurrency(totals.materials)}
+                </p>
+                <p className="text-[11px] text-subtle">
+                  {materialRows.length ? `${materialRows.length} lines` : 'None yet'}
+                </p>
+              </div>
             }
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-blue-600 shadow-xs hover:bg-slate-50 transition"
           >
-            <Plus size={14} /> Add Material Line
-          </button>
-        </div>
+            <CostLines
+              rows={materialRows}
+              setRows={setMaterialRows}
+              baseId={`${uid}-mat`}
+              descriptionLabel="Material description"
+              descriptionPlaceholder={'3/4" EMT conduit — 10 ft stick'}
+              quantityLabel="Qty"
+              unitLabel="Unit cost ($)"
+              emptyText="No materials on this ticket yet. Add a line only if materials were consumed."
+              addLabel="Add material line"
+            />
+          </Section>
 
-        {materials.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
-            No materials recorded. Click &ldquo;Add Material Line&rdquo; to log items used.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {materials.map((row, index) => {
-              const lineTotal = costLineTotal({
-                quantity: Number(row.quantity) || 0,
-                unit_cost: Number(row.unit_cost) || 0,
-              });
-              return (
-                <div
-                  key={`mat-${index}`}
-                  className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 transition hover:border-slate-300"
-                >
-                  <div className="flex items-center justify-between text-xs text-slate-500 pb-2">
-                    <span className="font-bold text-slate-700">Line {index + 1}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono font-bold text-slate-900">
-                        Line: {formatCurrency(lineTotal)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setMaterials((rows) => rows.filter((_, i) => i !== index))
-                        }
-                        aria-label={`Remove material line ${index + 1}`}
-                        className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-[1.5fr_0.8fr_0.8fr]">
-                    <div>
-                      <label
-                        className="field-label text-[11px]"
-                        htmlFor={`mat-desc-${index}`}
-                      >
-                        Material Description <span className="text-blue-600">*</span>
-                      </label>
-                      <input
-                        id={`mat-desc-${index}`}
-                        className="field-control min-h-9 px-3 py-1.5 text-xs sm:text-sm"
-                        required
-                        maxLength={240}
-                        value={row.description}
-                        onChange={(e) =>
-                          setMaterials((rows) =>
-                            rows.map((item, i) =>
-                              i === index ? { ...item, description: e.target.value } : item
-                            )
-                          )
-                        }
-                        placeholder="e.g. 3/4 inch EMT Conduit (10 ft stick)"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        className="field-label text-[11px]"
-                        htmlFor={`mat-qty-${index}`}
-                      >
-                        Quantity <span className="text-blue-600">*</span>
-                      </label>
-                      <input
-                        id={`mat-qty-${index}`}
-                        className="field-control min-h-9 px-3 py-1.5 text-xs sm:text-sm font-mono"
-                        type="number"
-                        required
-                        min="0.001"
-                        max="1000000"
-                        step="0.001"
-                        value={row.quantity}
-                        onChange={(e) =>
-                          setMaterials((rows) =>
-                            rows.map((item, i) =>
-                              i === index ? { ...item, quantity: e.target.value } : item
-                            )
-                          )
-                        }
-                        placeholder="0.00"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        className="field-label text-[11px]"
-                        htmlFor={`mat-cost-${index}`}
-                      >
-                        Unit Cost ($) <span className="text-blue-600">*</span>
-                      </label>
-                      <input
-                        id={`mat-cost-${index}`}
-                        className="field-control min-h-9 px-3 py-1.5 text-xs sm:text-sm font-mono"
-                        type="number"
-                        required
-                        min="0"
-                        max="1000000"
-                        step="0.01"
-                        value={row.unit_cost}
-                        onChange={(e) =>
-                          setMaterials((rows) =>
-                            rows.map((item, i) =>
-                              i === index ? { ...item, unit_cost: e.target.value } : item
-                            )
-                          )
-                        }
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-          <span className="font-semibold text-slate-500">Materials Subtotal</span>
-          <span className="font-mono text-sm font-bold text-slate-900 tabular-nums">
-            {formatCurrency(totals.materials)}
-          </span>
-        </div>
-      </section>
-
-      {/* SECTION D — EQUIPMENT & OTHER COSTS */}
-      <section className="card p-6 sm:p-7">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div>
-            <p className="eyebrow">Section D · Equipment & Other Costs</p>
-            <h2 className="mt-1 text-lg font-bold text-slate-900">Equipment, Rentals & Direct Costs</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Scissor lifts, boom rentals, core drilling, disposal fees, or specialty test gear.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              setCosts((rows) => [...rows, { description: '', quantity: '', unit_cost: '' }])
+          <Section
+            id="equipment"
+            index={4}
+            title="Equipment &amp; other costs"
+            description="Rentals, disposal fees and direct costs billed for this work."
+            icon={<Wrench size={16} aria-hidden="true" />}
+            aside={
+              <div className="text-right">
+                <p className="font-mono text-[13px] font-semibold text-ink">
+                  {formatCurrency(totals.other)}
+                </p>
+                <p className="text-[11px] text-subtle">
+                  {costRows.length ? `${costRows.length} lines` : 'None yet'}
+                </p>
+              </div>
             }
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-blue-600 shadow-xs hover:bg-slate-50 transition"
           >
-            <Plus size={14} /> Add Cost Item
-          </button>
+            <CostLines
+              rows={costRows}
+              setRows={setCostRows}
+              baseId={`${uid}-cost`}
+              descriptionLabel="Description"
+              descriptionPlaceholder="Electric scissor lift — day rental"
+              quantityLabel="Qty"
+              unitLabel="Unit cost ($)"
+              emptyText="Optional. Add rentals or direct costs if they belong on this ticket."
+              suggestions={commonEquipment}
+              addLabel="Add equipment or cost"
+            />
+          </Section>
         </div>
 
-        {costs.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
-            No equipment or miscellaneous costs. These entries are optional.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {costs.map((row, index) => {
-              const lineTotal = costLineTotal({
-                quantity: Number(row.quantity) || 0,
-                unit_cost: Number(row.unit_cost) || 0,
-              });
-              return (
-                <div
-                  key={`cost-${index}`}
-                  className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 transition hover:border-slate-300"
-                >
-                  <div className="flex items-center justify-between text-xs text-slate-500 pb-2">
-                    <span className="font-bold text-slate-700">Line {index + 1}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono font-bold text-slate-900">
-                        Line: {formatCurrency(lineTotal)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setCosts((rows) => rows.filter((_, i) => i !== index))}
-                        aria-label={`Remove cost line ${index + 1}`}
-                        className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-[1.5fr_0.8fr_0.8fr]">
-                    <div>
-                      <label
-                        className="field-label text-[11px]"
-                        htmlFor={`cost-desc-${index}`}
-                      >
-                        Description <span className="text-blue-600">*</span>
-                      </label>
-                      <input
-                        id={`cost-desc-${index}`}
-                        className="field-control min-h-9 px-3 py-1.5 text-xs sm:text-sm"
-                        required
-                        maxLength={240}
-                        value={row.description}
-                        onChange={(e) =>
-                          setCosts((rows) =>
-                            rows.map((item, i) =>
-                              i === index ? { ...item, description: e.target.value } : item
-                            )
-                          )
-                        }
-                        placeholder="e.g. Electric scissor lift day rental"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        className="field-label text-[11px]"
-                        htmlFor={`cost-qty-${index}`}
-                      >
-                        Quantity <span className="text-blue-600">*</span>
-                      </label>
-                      <input
-                        id={`cost-qty-${index}`}
-                        className="field-control min-h-9 px-3 py-1.5 text-xs sm:text-sm font-mono"
-                        type="number"
-                        required
-                        min="0.001"
-                        max="1000000"
-                        step="0.001"
-                        value={row.quantity}
-                        onChange={(e) =>
-                          setCosts((rows) =>
-                            rows.map((item, i) =>
-                              i === index ? { ...item, quantity: e.target.value } : item
-                            )
-                          )
-                        }
-                        placeholder="0.00"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        className="field-label text-[11px]"
-                        htmlFor={`cost-cost-${index}`}
-                      >
-                        Unit Cost ($) <span className="text-blue-600">*</span>
-                      </label>
-                      <input
-                        id={`cost-cost-${index}`}
-                        className="field-control min-h-9 px-3 py-1.5 text-xs sm:text-sm font-mono"
-                        type="number"
-                        required
-                        min="0"
-                        max="1000000"
-                        step="0.01"
-                        value={row.unit_cost}
-                        onChange={(e) =>
-                          setCosts((rows) =>
-                            rows.map((item, i) =>
-                              i === index ? { ...item, unit_cost: e.target.value } : item
-                            )
-                          )
-                        }
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
+        {/* -------- Sticky summary column -------- */}
+        <aside className="lg:sticky lg:top-20 lg:order-none">
+          <Card flush id="review" className="scroll-mt-24">
+            <CardHeader title="Review" description="Totals update as you type" bordered />
+            <dl className="divide-y divide-line px-5">
+              {[
+                { label: 'Labor', value: totals.labor, count: describedLabor.length },
+                { label: 'Materials', value: totals.materials, count: describedMaterials.length },
+                { label: 'Equipment & other', value: totals.other, count: describedCosts.length },
+              ].map((row) => (
+                <div key={row.label} className="flex items-baseline justify-between gap-3 py-2.5">
+                  <dt className="text-[13px] text-muted">
+                    {row.label}
+                    <span className="ml-1.5 text-[11px] text-faint">({row.count})</span>
+                  </dt>
+                  <dd className="font-mono text-[13px] font-medium text-body tabular-nums">
+                    {formatCurrency(row.value)}
+                  </dd>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              ))}
+            </dl>
 
-        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-          <span className="font-semibold text-slate-500">Other Subtotal</span>
-          <span className="font-mono text-sm font-bold text-slate-900 tabular-nums">
-            {formatCurrency(totals.other)}
-          </span>
-        </div>
-      </section>
+            <div className="mt-1 border-t border-line bg-surface-2/60 px-5 py-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-subtle">
+                  Documented total
+                </span>
+                <span className="font-mono text-xl font-semibold text-ink tabular-nums">
+                  {formatCurrency(totals.total)}
+                </span>
+              </div>
+              <p className="mt-1 text-[11.5px] text-muted">
+                {lineCount} {lineCount === 1 ? 'line item' : 'line items'} ·{' '}
+                {dirty ? 'Unsaved changes' : 'All changes saved'}
+              </p>
+            </div>
 
-      {/* SECTION E — REVIEW & TOTALS */}
-      <section className="rounded-2xl border border-slate-900 bg-slate-900 p-6 text-white shadow-md sm:p-7">
-        <div className="flex items-start gap-2.5 text-xs leading-5 text-slate-300">
-          <Info size={16} className="mt-0.5 shrink-0 text-blue-400" />
-          <span>
-            Documented totals reflect field data captured by your crew. They are intended for billing preparation and tracking, and do not guarantee customer signoff or formal approval.
-          </span>
-        </div>
+            <div className="flex flex-col-reverse gap-2 border-t border-line p-5 sm:flex-row sm:justify-end lg:flex-col-reverse">
+              <ButtonLink href={cancelHref} variant="secondary" className="justify-center">
+                Cancel
+              </ButtonLink>
+              <Button type="submit" loading={pending} className="justify-center">
+                {pending ? 'Saving…' : saveLabel}
+              </Button>
+            </div>
+          </Card>
 
-        <div className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-800 pt-5 sm:grid-cols-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Labor</p>
-            <p className="mt-1 font-mono text-base font-bold text-white tabular-nums">
-              {formatCurrency(totals.labor)}
-            </p>
+          <div className="mt-4">
+            <Alert tone="info" title="Documentation, not approval">
+              Totals are calculated from these entries for billing preparation. They do not create a
+              customer approval, a change order, or a guarantee of payment.
+            </Alert>
           </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Materials</p>
-            <p className="mt-1 font-mono text-base font-bold text-white tabular-nums">
-              {formatCurrency(totals.materials)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Other</p>
-            <p className="mt-1 font-mono text-base font-bold text-white tabular-nums">
-              {formatCurrency(totals.other)}
-            </p>
-          </div>
-          <div className="col-span-2 border-t border-slate-800 pt-3 sm:col-span-1 sm:border-0 sm:pt-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-blue-400">
-              Documented Total
-            </p>
-            <p className="mt-1 font-mono text-xl font-black text-white sm:text-2xl tabular-nums">
-              {formatCurrency(totals.total)}
-            </p>
-          </div>
-        </div>
+        </aside>
+      </div>
 
-        <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-800 pt-5 sm:flex-row sm:justify-end">
-          <ButtonLink
-            href={ticket?.id ? `/tickets/${ticket.id}` : '/tickets'}
-            variant="quiet"
-            className="text-slate-300 hover:text-white"
-          >
-            Cancel
-          </ButtonLink>
-          <Button
-            type="submit"
-            disabled={pending}
-            className="min-w-44 bg-blue-600 text-white hover:bg-blue-500"
-          >
-            {pending && <LoaderCircle size={15} className="animate-spin" />}
-            {pending ? 'Saving Record…' : ticket ? 'Save Changes' : 'Create Work Ticket'}
-          </Button>
-        </div>
-      </section>
-
-      {/* Sticky Mobile Summary Bar */}
-      <div className="no-print fixed inset-x-0 bottom-14 z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur-md shadow-lg sm:hidden">
+      {/* -------- Mobile sticky save bar -------- */}
+      <div className="no-print fixed inset-x-0 bottom-14 z-30 border-t border-line bg-surface/95 px-3 py-2.5 backdrop-blur-md lg:hidden">
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Documented Total
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-subtle">
+              Documented total
             </p>
-            <p className="font-mono text-sm font-black text-slate-900 tabular-nums">
+            <p className="font-mono text-[15px] font-semibold text-ink tabular-nums">
               {formatCurrency(totals.total)}
             </p>
           </div>
-          <Button type="submit" disabled={pending} size="sm" className="min-w-32">
-            {pending && <LoaderCircle size={14} className="animate-spin" />}
-            {pending ? 'Saving…' : ticket ? 'Save Ticket' : 'Create Ticket'}
+          <Button type="submit" size="md" loading={pending} className="min-w-32">
+            {pending ? 'Saving…' : ticket ? 'Save' : 'Create'}
           </Button>
         </div>
       </div>

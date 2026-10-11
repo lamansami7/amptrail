@@ -1,7 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { FolderKanban } from 'lucide-react';
 import { EvidencePanel, type EvidenceView } from './evidence-panel';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Field, Select } from '@/components/ui/field';
+import { EmptyState } from '@/components/ui/empty-state';
+import { pluralize } from '@/lib/utils';
 
 export function EvidenceCapture({
   companyId,
@@ -14,7 +19,7 @@ export function EvidenceCapture({
   tickets: Array<{ id: string; project_id: string; ticket_number: string }>;
   evidence: Array<EvidenceView & { project_id: string; ticket_id: string | null }>;
 }) {
-  const [projectId, setProjectId] = useState(projects[0]?.id || '');
+  const [projectId, setProjectId] = useState(projects[0]?.id ?? '');
   const [ticketId, setTicketId] = useState('');
 
   const selectedProject = projects.find((project) => project.id === projectId);
@@ -23,82 +28,95 @@ export function EvidenceCapture({
     [tickets, projectId]
   );
   const selectedTicket = availableTickets.find((ticket) => ticket.id === ticketId);
-
-  const list = evidence.filter(
+  const visibleEvidence = evidence.filter(
     (item) => item.project_id === projectId && (ticketId ? item.ticket_id === ticketId : true)
   );
 
   return (
     <div className="space-y-6">
-      {/* Target Selector Card */}
-      <div className="card p-5 sm:p-6">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-          Select Jobsite Context
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="field-label" htmlFor="capture-project">
-              Target Project <span className="text-blue-600">*</span>
-            </label>
-            <div className="relative">
-              <select
-                id="capture-project"
-                className="field-control"
+      <Card flush>
+        <CardHeader
+          title="Where does this photo belong?"
+          description="Choose the jobsite first, then optionally tie the photo to one ticket."
+          icon={<FolderKanban size={16} aria-hidden="true" />}
+          bordered
+        />
+        <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
+          <Field id="capture-project" label="Project" required>
+            {(props) => (
+              <Select
+                {...props}
                 value={projectId}
-                onChange={(e) => {
-                  setProjectId(e.target.value);
+                onChange={(event) => {
+                  setProjectId(event.target.value);
                   setTicketId('');
                 }}
               >
                 <option value="" disabled>
-                  Choose a project...
+                  Choose a project…
                 </option>
                 {projects.map((project) => (
-                  <option value={project.id} key={project.id}>
+                  <option key={project.id} value={project.id}>
                     {project.name}
                   </option>
                 ))}
-              </select>
-            </div>
-          </div>
+              </Select>
+            )}
+          </Field>
 
-          <div>
-            <label className="field-label" htmlFor="capture-ticket">
-              Associated Work Ticket <span className="text-slate-400 font-normal">(Optional)</span>
-            </label>
-            <div className="relative">
-              <select
-                id="capture-ticket"
-                className="field-control"
+          <Field
+            id="capture-ticket"
+            label="Work ticket"
+            optional
+            hint={
+              availableTickets.length
+                ? 'Leave empty for general jobsite evidence.'
+                : 'No tickets exist for this project yet.'
+            }
+          >
+            {(props) => (
+              <Select
+                {...props}
                 value={ticketId}
-                onChange={(e) => setTicketId(e.target.value)}
+                onChange={(event) => setTicketId(event.target.value)}
               >
-                <option value="">All Project Photos (or general jobsite evidence)</option>
+                <option value="">All project photos</option>
                 {availableTickets.map((ticket) => (
-                  <option value={ticket.id} key={ticket.id}>
+                  <option key={ticket.id} value={ticket.id}>
                     Ticket {ticket.ticket_number}
                   </option>
                 ))}
-              </select>
-            </div>
-          </div>
+              </Select>
+            )}
+          </Field>
         </div>
-      </div>
+      </Card>
 
       {selectedProject ? (
-        <EvidencePanel
-          key={`${projectId}:${ticketId}`}
-          companyId={companyId}
-          projectId={projectId}
-          projectName={selectedProject.name}
-          ticketId={selectedTicket?.id || null}
-          ticketNumber={selectedTicket?.ticket_number || null}
-          evidence={list}
-        />
+        <>
+          <EvidencePanel
+            key={`${projectId}:${ticketId}`}
+            companyId={companyId}
+            projectId={projectId}
+            projectName={selectedProject.name}
+            ticketId={selectedTicket?.id ?? null}
+            ticketNumber={selectedTicket?.ticket_number ?? null}
+            evidence={visibleEvidence}
+            hideTitle
+          />
+          <p className="text-[12px] text-muted">
+            Showing {pluralize(visibleEvidence.length, 'photo')} for{' '}
+            <span className="font-medium text-body">{selectedProject.name}</span>
+            {selectedTicket ? ` · ticket ${selectedTicket.ticket_number}` : ''}.
+          </p>
+        </>
       ) : (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-xs text-slate-500">
-          Choose an active project above to capture or review jobsite evidence.
-        </div>
+        <EmptyState
+          icon={<FolderKanban size={20} aria-hidden="true" />}
+          tone="neutral"
+          title="Choose a project to continue"
+          description="Evidence is always attached to a jobsite so photos stay organized and correctly scoped."
+        />
       )}
     </div>
   );

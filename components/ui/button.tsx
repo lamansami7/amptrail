@@ -1,38 +1,90 @@
 import Link from 'next/link';
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react';
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, Ref } from 'react';
+import { LoaderCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-type Variant = 'primary' | 'secondary' | 'quiet' | 'danger' | 'dark';
-type Size = 'sm' | 'md' | 'lg';
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'soft'
+  | 'ghost'
+  | 'danger'
+  | 'dangerSoft'
+  | 'inverse';
 
-const variants: Record<Variant, string> = {
-  primary: 'bg-blue-600 text-white shadow-sm shadow-blue-600/10 hover:bg-blue-700 active:bg-blue-800 focus-visible:ring-blue-600/30',
-  secondary: 'border border-slate-200 bg-white text-slate-800 shadow-xs hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 focus-visible:ring-slate-300',
-  quiet: 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-200',
-  danger: 'bg-rose-600 text-white shadow-sm hover:bg-rose-700 active:bg-rose-800 focus-visible:ring-rose-300',
-  dark: 'bg-slate-900 text-white shadow-sm hover:bg-slate-800 active:bg-slate-950 focus-visible:ring-slate-400',
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
+
+const variantClasses: Record<ButtonVariant, string> = {
+  primary:
+    'bg-brand-600 text-white shadow-xs hover:bg-brand-700 active:bg-brand-800 disabled:bg-brand-600',
+  secondary:
+    'border border-line-strong bg-surface text-ink-soft shadow-xs hover:bg-surface-2 hover:text-ink active:bg-surface-3',
+  soft: 'bg-brand-50 text-brand-800 hover:bg-brand-100 active:bg-brand-200/70',
+  ghost: 'text-body hover:bg-surface-3 hover:text-ink active:bg-line',
+  danger: 'bg-danger text-white shadow-xs hover:bg-rose-800 active:bg-rose-900',
+  dangerSoft: 'border border-danger-line bg-danger-soft text-danger hover:bg-rose-100',
+  inverse: 'bg-ink text-white shadow-xs hover:bg-ink-soft active:bg-black',
 };
 
-const sizes: Record<Size, string> = {
-  sm: 'min-h-9 px-3 py-1.5 text-xs font-semibold rounded-lg',
-  md: 'min-h-10 px-4 py-2 text-sm font-semibold rounded-xl',
-  lg: 'min-h-12 px-5 py-3 text-[15px] font-bold rounded-xl',
+const sizeClasses: Record<ButtonSize, string> = {
+  xs: 'min-h-7 gap-1.5 rounded-md px-2 text-xs font-semibold',
+  sm: 'min-h-8 gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold',
+  md: 'min-h-10 gap-2 rounded-lg px-3.5 text-sm font-semibold',
+  lg: 'min-h-11 gap-2 rounded-xl px-5 text-[0.9375rem] font-semibold',
 };
 
-const base = 'inline-flex items-center justify-center gap-2 transition duration-150 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-50';
+const iconOnlySize: Record<ButtonSize, string> = {
+  xs: 'h-7 w-7 rounded-md',
+  sm: 'h-8 w-8 rounded-lg',
+  md: 'h-10 w-10 rounded-lg',
+  lg: 'h-11 w-11 rounded-xl',
+};
+
+const base =
+  'relative inline-flex select-none items-center justify-center whitespace-nowrap align-middle transition-[background-color,color,border-color,box-shadow,transform] duration-150 ease-out disabled:pointer-events-none disabled:opacity-55 [&_svg]:shrink-0 active:translate-y-px';
+
+export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  loading?: boolean;
+  iconOnly?: boolean;
+  ref?: Ref<HTMLButtonElement>;
+  children: ReactNode;
+};
 
 export function Button({
   variant = 'primary',
   size = 'md',
-  className = '',
+  loading = false,
+  iconOnly = false,
+  className,
   children,
+  disabled,
+  type = 'button',
+  ref,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: Variant;
-  size?: Size;
-  children: ReactNode;
-}) {
+}: ButtonProps) {
   return (
-    <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props}>
+    <button
+      ref={ref}
+      type={type}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={cn(
+        base,
+        iconOnly ? iconOnlySize[size] : sizeClasses[size],
+        variantClasses[variant],
+        className
+      )}
+      {...props}
+    >
+      {loading && (
+        <LoaderCircle
+          size={size === 'lg' ? 16 : 14}
+          className="animate-spin"
+          aria-hidden="true"
+        />
+      )}
       {children}
     </button>
   );
@@ -42,17 +94,28 @@ export function ButtonLink({
   href,
   variant = 'primary',
   size = 'md',
-  className = '',
+  iconOnly = false,
+  className,
   children,
   ...props
 }: AnchorHTMLAttributes<HTMLAnchorElement> & {
   href: string;
-  variant?: Variant;
-  size?: Size;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  iconOnly?: boolean;
   children: ReactNode;
 }) {
   return (
-    <Link href={href} className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props}>
+    <Link
+      href={href}
+      className={cn(
+        base,
+        iconOnly ? iconOnlySize[size] : sizeClasses[size],
+        variantClasses[variant],
+        className
+      )}
+      {...props}
+    >
       {children}
     </Link>
   );

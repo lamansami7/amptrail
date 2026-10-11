@@ -7,7 +7,13 @@ import { isSupabaseConfigured } from '@/lib/supabase/config';
 export const metadata: Metadata = { title: 'Choose a new password' };
 
 export default function ResetPasswordPage() {
-  return <AuthFrame title="Choose a new password" subtitle="Use at least 8 characters. The reset link only works once and may expire.">
-    {!isSupabaseConfigured() ? <SetupNotice compact /> : <ResetPasswordForm />}
-  </AuthFrame>;
+  return (
+    <AuthFrame
+      eyebrow="Account recovery"
+      title="Choose a new password"
+      subtitle="Use at least 8 characters. Recovery links work once and expire, so set the new password now."
+    >
+      {!isSupabaseConfigured() ? <SetupNotice compact /> : <ResetPasswordForm />}
+    </AuthFrame>
+  );
 }

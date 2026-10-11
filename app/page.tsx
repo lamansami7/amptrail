@@ -1,97 +1,168 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import {
-  ArrowDown,
   ArrowRight,
+  Calculator,
   Camera,
   Check,
-  CheckCircle2,
-  Clock3,
+  ClipboardList,
   FileDown,
-  FileText,
-  ShieldAlert,
+  MapPin,
+  Package,
   ShieldCheck,
   Smartphone,
+  Sparkles,
+  Timer,
   TrendingUp,
-  Wrench,
-  Zap,
 } from 'lucide-react';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
-import { ProductPreview } from '@/components/marketing/product-preview';
+import { FaqAccordion } from '@/components/marketing/faq-accordion';
+import { PreviewTabs } from '@/components/marketing/preview-tabs';
+import {
+  DashboardPreview,
+  EditorPreview,
+  EvidencePreview,
+  PdfPreview,
+  TicketDocPreview,
+} from '@/components/marketing/previews';
 import { ButtonLink } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 export const metadata: Metadata = {
-  title: 'AmpTrail — Extra Work & T&M Documentation for Electrical Subcontractors',
+  title: 'AmpTrail — Extra work, fully documented',
   description:
-    'Capture extra work, crew labor, material receipts, and jobsite photos in one organized workspace. Build audit-ready T&M work records and protect your margins.',
+    'Capture extra work, crew labor, materials and jobsite photos in one workspace, then export a professional T&M record. Built for commercial electrical subcontractors.',
 };
 
-const problemPoints = [
+const problems = [
   {
-    icon: ShieldAlert,
-    title: 'Disputed Extra Work',
-    copy: 'Work performed under verbal direction gets forgotten or disputed weeks later when the GC project manager receives the change order request.',
+    title: 'Verbal direction disappears',
+    body: 'A superintendent asks for a reroute at 7am. By invoice time nobody remembers who directed it or why the drawings did not match.',
   },
   {
-    icon: FileText,
-    title: 'Lost Paper Tickets',
-    copy: 'Carbon paper tickets get stained, wrinkled in trucks, or left on clipboards, resulting in untracked costs that the subcontractor ends up eating.',
+    title: 'Paper tickets die in the truck',
+    body: 'Carbon copies crease, fade, or never make it back to the office — and the hours quietly become your company’s cost.',
   },
   {
-    icon: Camera,
-    title: 'Missing Photo Evidence',
-    copy: 'Photos taken on personal phone cameras get buried among personal photos or forgotten before walls and drywall ceilings are closed up.',
+    title: 'Photos get buried',
+    body: 'Site photos land in a personal camera roll. Once drywall closes the ceiling, there is nothing left to point at.',
   },
   {
-    icon: Clock3,
-    title: 'Delayed Billing Cycles',
-    copy: 'Office project managers spend hours hunting down foremen for hours, receipts, and descriptions before they can prepare billing documentation.',
+    title: 'Billing waits on the story',
+    body: 'The office chases foremen for hours and descriptions weeks later, so the change order request lands even later.',
   },
 ];
 
-const workflowSteps = [
+const workflow = [
   {
     step: '01',
-    title: 'Open the Jobsite Project',
-    copy: 'Select the active project with its job number, site address, and general contractor pre-configured.',
+    title: 'Set up the job once',
+    body: 'Project name, job number, jobsite address and general contractor — entered once, reused on every ticket.',
   },
   {
     step: '02',
-    title: 'Capture Field Details Fast',
-    copy: 'Describe the out-of-scope work, record worker hours, material line items, and snap jobsite photos before moving on.',
+    title: 'Document the extra work',
+    body: 'Describe the condition, the direction received, and the area. Add labor hours, materials and equipment on the same screen.',
   },
   {
     step: '03',
-    title: 'Review Live Calculations',
-    copy: 'Documented costs are automatically calculated down to the cent with transparent labor, materials, and equipment line items.',
+    title: 'Attach the proof on site',
+    body: 'Take photos straight from the phone and caption them while the work is still visible.',
   },
   {
     step: '04',
-    title: 'Export Audit-Ready Records',
-    copy: 'Download professional PDF records with dual signature blocks for customer review and your accounting pipeline.',
+    title: 'Send a record that holds up',
+    body: 'Export a formatted PDF with line-item detail and blank acknowledgement lines for the site representative.',
+  },
+];
+
+const productFeatures = [
+  {
+    icon: ClipboardList,
+    title: 'Structured work tickets',
+    body: 'Project, work date, area, reason outside scope and the customer representative — captured in the same order every time.',
+  },
+  {
+    icon: Calculator,
+    title: 'Live calculations',
+    body: 'Line totals and subtotals recalculate as you type, so the number on the screen is the number on the document.',
+  },
+  {
+    icon: Package,
+    title: 'Labor, materials, equipment',
+    body: 'Separate sections for crew hours and rates, material quantities and unit costs, and rented equipment or direct costs.',
+  },
+  {
+    icon: Camera,
+    title: 'Company-scoped evidence',
+    body: 'Photos live in a private bucket and are only reachable through short-lived signed links issued to your workspace.',
+  },
+  {
+    icon: Timer,
+    title: 'Built for a phone, standing up',
+    body: 'Large touch targets, sensible keyboards for numbers, and a running total that stays visible while you work.',
+  },
+  {
+    icon: FileDown,
+    title: 'PDF export and print',
+    body: 'One click produces an 8.5 × 11 record with your company header, line items, subtotals and signature blocks.',
+  },
+];
+
+const audience = [
+  {
+    icon: Smartphone,
+    title: 'For the foreman on site',
+    points: [
+      'Document extra work while standing in the room where it happened.',
+      'Add a labor line without hunting through menus or doing arithmetic.',
+      'Photos and captions attached before the ceiling closes.',
+      'Nothing to memorise — the next ticket looks like the last one.',
+    ],
+  },
+  {
+    icon: TrendingUp,
+    title: 'For the owner and PM',
+    points: [
+      'See every open ticket and its documented value from one screen.',
+      'Filter by status, project or search across descriptions.',
+      'Export the record instead of reconstructing it from texts.',
+      'Keep the field and the office working from the same numbers.',
+    ],
   },
 ];
 
 const faqs = [
   {
-    q: 'Does AmpTrail guarantee customer approval or payment?',
-    a: 'No. AmpTrail is a documentation and tracking system. It gives electrical subcontractors a clean, verifiable record of field conditions, crew hours, materials, and photo evidence. Approval, contract entitlement, and payment remain subject to your agreement with the general contractor or owner.',
+    question: 'Does AmpTrail approve work or guarantee payment?',
+    answer:
+      'No. AmpTrail is a documentation tool. It records what your crew did, what it cost, and what evidence exists. Approval, contract entitlement and payment stay with your agreement with the general contractor or owner. Statuses such as “Approved” are internal workflow labels your team sets for tracking.',
   },
   {
-    q: 'Can foremen use AmpTrail on their phones at the jobsite?',
-    a: 'Yes. The ticket creation and evidence upload workflows are optimized for mobile touch targets, responsive inputs, and direct access to phone cameras without requiring complicated software training.',
+    question: 'How are my jobsite photos stored?',
+    answer:
+      'Evidence is uploaded to a private Supabase storage bucket scoped to your company. Access is enforced by row-level security and object policies, and the interface displays images through signed URLs that expire after one hour. There are no public photo links.',
   },
   {
-    q: 'Are evidence photos private and secure?',
-    a: 'Yes. Photo evidence is stored in private, company-scoped storage buckets with PostgreSQL Row-Level Security (RLS). Photos are accessible only via short-lived signed URLs generated for authenticated members of your company.',
+    question: 'Can foremen use it on a phone on site?',
+    answer:
+      'Yes — the ticket editor is built for phones first. Numeric fields open the decimal keypad, the running total stays pinned, and the main navigation is reachable with one thumb. The same account works on desktop in the office.',
   },
   {
-    q: 'Can we download PDF work records to present to general contractors?',
-    a: 'Yes. Every ticket can be exported directly into a clean, professional PDF document complete with your company branding, project details, line item breakdowns, and acknowledgment signature blocks.',
+    question: 'What does the exported PDF contain?',
+    answer:
+      'A formatted work record with your company name, the ticket number and date, the project and job number, the general contractor, the work description and reason outside scope, itemised labor, material and equipment lines with subtotals, any attached evidence thumbnails, and blank signature lines for acknowledgement.',
   },
   {
-    q: 'How are ticket statuses tracked?',
-    a: 'Tickets follow a clear progression: Draft → Ready for Review → Submitted → Approved → Invoiced (or Rejected). These are internal team tracking labels used to coordinate work between the field and the office.',
+    question: 'What happens to a ticket after it is created?',
+    answer:
+      'Tickets move through Draft, Ready for review, Submitted, Approved, Invoiced or Rejected so the field and the office can see where each record stands. Only the person who created a ticket can edit it, and only an untouched draft can be deleted.',
+  },
+  {
+    question: 'Do I need to install anything?',
+    answer:
+      'No. AmpTrail runs in the browser and is designed to be usable the moment your account is created — add a project, create a ticket, and export it.',
   },
 ];
 
@@ -99,424 +170,348 @@ export default function HomePage() {
   return (
     <>
       <SiteHeader />
-      <main>
-        {/* SECTION 1 & 2: HERO & PRODUCT PREVIEW */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50/50 py-16 sm:py-20 lg:py-24">
-          <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:px-8">
-            <div className="max-w-[620px]">
-              <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50/80 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-blue-700">
-                <Zap size={14} className="fill-blue-600" />
-                Electrical Subcontractor Operations
-              </span>
 
-              <h1 className="mt-5 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl lg:text-6xl sm:leading-[1.08]">
-                Document the work.<br />
-                <span className="text-blue-600">Protect the paper trail.</span>
+      <main id="main">
+        {/* ---------------- Hero ---------------- */}
+        <section className="relative overflow-hidden border-b border-line">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_100%_at_50%_-10%,rgba(37,99,235,0.10),transparent_55%)]"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-[0.35] [background-image:linear-gradient(to_right,#e4e9f0_1px,transparent_1px),linear-gradient(to_bottom,#e4e9f0_1px,transparent_1px)] [background-size:56px_56px] [mask-image:radial-gradient(80%_60%_at_50%_0%,black,transparent)]"
+          />
+
+          <div className="relative mx-auto grid max-w-6xl gap-12 px-4 pb-16 pt-14 sm:px-6 sm:pb-20 sm:pt-20 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)] lg:items-center lg:gap-16 lg:px-8 lg:pb-24 lg:pt-24">
+            <div className="max-w-xl">
+              <p className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-brand-50/70 py-1 pl-1.5 pr-3 text-[12.5px] font-medium text-brand-800">
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-brand-600 text-white">
+                  <Sparkles size={11} aria-hidden="true" />
+                </span>
+                Built for commercial electrical subcontractors
+              </p>
+
+              <h1 className="display mt-6">
+                Document the work.
+                <br />
+                <span className="text-brand-600">Protect the paper trail.</span>
               </h1>
 
-              <p className="mt-6 text-base leading-relaxed text-slate-600 sm:text-lg sm:leading-8">
-                AmpTrail helps electrical subcontractors capture extra work, labor, materials, and jobsite evidence in one organized workspace.
+              <p className="mt-6 text-[1.0625rem] leading-7 text-body sm:text-lg sm:leading-8">
+                Capture extra work, track labor and materials, and organize jobsite evidence — all in
+                one workspace built for electrical subcontractors.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <ButtonLink href="/signup" size="lg" className="min-w-44 shadow-md">
-                  Get Started Free <ArrowRight size={16} />
+                <ButtonLink href="/signup" size="lg" className="sm:min-w-48">
+                  Create your workspace
+                  <ArrowRight size={16} aria-hidden="true" />
                 </ButtonLink>
-                <a
-                  href="#how-it-works"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-[15px] font-bold text-slate-700 shadow-xs hover:bg-slate-50 transition"
-                >
-                  See How It Works <ArrowDown size={15} />
-                </a>
+                <ButtonLink href="#product" variant="secondary" size="lg">
+                  See the product
+                </ButtonLink>
               </div>
 
-              <div className="mt-6 flex items-center gap-2 text-xs text-slate-500">
-                <ShieldCheck size={16} className="text-blue-600 shrink-0" />
-                <span>
-                  Audit-ready field documentation. Protect your contract margins without lost paperwork.
-                </span>
-              </div>
+              <ul className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-muted">
+                {[
+                  'Free to start',
+                  'No credit card required',
+                  'Works on phones on site',
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-1.5">
+                    <Check size={14} className="shrink-0 text-brand-600" aria-hidden="true" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            {/* Interactive/Live Product Preview */}
-            <ProductPreview />
+            <div className="relative mx-auto w-full max-w-[34rem] pb-8 sm:pb-10">
+              <TicketDocPreview />
+              <div className="absolute -bottom-1 left-0 z-20 hidden w-52 rounded-xl border border-line bg-surface p-3 shadow-lg sm:block lg:-left-8">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-subtle">
+                  <Calculator size={11} aria-hidden="true" />
+                  Labor · live
+                </p>
+                <p className="mt-1.5 font-mono text-[15px] font-semibold text-ink">$4,812.00</p>
+                <p className="mt-0.5 text-[11px] text-muted">Recalculated per line</p>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* SECTION 3: THE PROBLEM — UNDOCUMENTED EXTRA WORK */}
-        <section id="the-problem" className="scroll-mt-20 border-y border-slate-200/80 bg-white py-16 sm:py-20 lg:py-24">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="eyebrow">The Cost of Missing Evidence</p>
-              <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                Undocumented extra work is money left on the table.
+        {/* ---------------- Problem ---------------- */}
+        <section id="problem" className="border-b border-line bg-surface py-16 sm:py-20 lg:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl">
+              <p className="eyebrow">The cost of a missing record</p>
+              <h2 className="mt-3 text-[1.75rem] font-semibold tracking-[-0.025em] text-ink sm:text-[2rem]">
+                Undocumented extra work becomes your company’s cost.
               </h2>
-              <p className="mt-3 text-sm sm:text-base text-slate-500 leading-relaxed">
-                On fast-moving commercial jobsites, electrical foremen get verbal instructions every day. Without instant, structured field documentation, your company absorbs the cost.
+              <p className="mt-3 text-[15px] leading-7 text-muted">
+                On a commercial jobsite, direction arrives verbally and construction moves fast. If
+                the record is not captured while the work is visible, the money follows the memory.
               </p>
             </div>
 
-            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {problemPoints.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div
-                    key={item.title}
-                    className="card flex flex-col justify-between p-6 transition hover:border-slate-300"
-                  >
-                    <div>
-                      <span className="grid h-10 w-10 place-items-center rounded-xl bg-rose-50 text-rose-600 ring-1 ring-rose-600/10">
-                        <Icon size={18} />
-                      </span>
-                      <h3 className="mt-4 text-base font-bold text-slate-900">{item.title}</h3>
-                      <p className="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">{item.copy}</p>
-                    </div>
+            <ol className="mt-12 grid gap-x-8 gap-y-8 sm:grid-cols-2">
+              {problems.map((problem, index) => (
+                <li key={problem.title} className="flex gap-4">
+                  <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-line bg-surface-2 font-mono text-[12px] font-semibold text-subtle">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <h3 className="h3">{problem.title}</h3>
+                    <p className="mt-1.5 text-[13.5px] leading-6 text-muted">{problem.body}</p>
                   </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* ---------------- Workflow ---------------- */}
+        <section id="workflow" className="py-16 sm:py-20 lg:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-start lg:gap-16">
+              <div className="lg:sticky lg:top-24">
+                <p className="eyebrow">How it works</p>
+                <h2 className="mt-3 text-[1.75rem] font-semibold tracking-[-0.025em] text-ink sm:text-[2rem]">
+                  Four steps from the jobsite to a finished record.
+                </h2>
+                <p className="mt-3 text-[15px] leading-7 text-muted">
+                  The workflow is designed for someone standing in a mechanical room, holding a
+                  phone, with a superintendent waiting.
+                </p>
+
+                <ol className="mt-8 space-y-5">
+                  {workflow.map((item) => (
+                    <li key={item.step} className="flex gap-4">
+                      <span className="mt-0.5 font-mono text-[12px] font-semibold text-brand-600">
+                        {item.step}
+                      </span>
+                      <div>
+                        <h3 className="h3">{item.title}</h3>
+                        <p className="mt-1 text-[13.5px] leading-6 text-muted">{item.body}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <PreviewTabs
+                panels={[
+                  {
+                    id: 'editor',
+                    label: 'Ticket editor',
+                    content: <EditorPreview />,
+                    hint: 'Labor, material and equipment lines recalculate as you type.',
+                  },
+                  {
+                    id: 'dashboard',
+                    label: 'Overview',
+                    content: <DashboardPreview />,
+                    hint: 'Every open ticket, its status and its documented value on one screen.',
+                  },
+                ]}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------- Product ---------------- */}
+        <section id="product" className="border-y border-line bg-surface py-16 sm:py-20 lg:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl">
+              <p className="eyebrow">The product</p>
+              <h2 className="mt-3 text-[1.75rem] font-semibold tracking-[-0.025em] text-ink sm:text-[2rem]">
+                One workspace for the whole record.
+              </h2>
+              <p className="mt-3 text-[15px] leading-7 text-muted">
+                Not a form builder and not a spreadsheet. AmpTrail is one structured workflow that
+                produces a document a general contractor can read.
+              </p>
+            </div>
+
+            <div className="mt-12 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
+              <ul className="grid gap-x-8 gap-y-7 sm:grid-cols-2">
+                {productFeatures.map((feature) => {
+                  const Icon = feature.icon;
+                  return (
+                    <li key={feature.title}>
+                      <span className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-surface-2 text-brand-700">
+                        <Icon size={17} aria-hidden="true" />
+                      </span>
+                      <h3 className="mt-3.5 h3">{feature.title}</h3>
+                      <p className="mt-1.5 text-[13.5px] leading-6 text-muted">{feature.body}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <div className="space-y-6">
+                <EvidencePreview />
+                <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12.5px] text-muted">
+                  {[
+                    ['JPEG, PNG, WebP', Camera],
+                    ['10 MB per photo', ShieldCheck],
+                    ['Signed links, 1-hour expiry', MapPin],
+                  ].map(([label], index) => (
+                    <span key={label as string} className="flex items-center gap-1.5">
+                      {index === 0 ? (
+                        <Camera size={13} className="text-brand-600" aria-hidden="true" />
+                      ) : index === 1 ? (
+                        <ShieldCheck size={13} className="text-brand-600" aria-hidden="true" />
+                      ) : (
+                        <Timer size={13} className="text-brand-600" aria-hidden="true" />
+                      )}
+                      {label as string}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------- Records / PDF ---------------- */}
+        <section id="records" className="py-16 sm:py-20 lg:py-24">
+          <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8">
+            <div>
+              <p className="eyebrow">Output</p>
+              <h2 className="mt-3 text-[1.75rem] font-semibold tracking-[-0.025em] text-ink sm:text-[2rem]">
+                A record you can hand over, not explain.
+              </h2>
+              <p className="mt-3 text-[15px] leading-7 text-muted">
+                Export or print an 8.5 × 11 document with your company header, the project and job
+                number, the work performed and why it fell outside scope, itemised lines with
+                subtotals, and blank signature lines for acknowledgement on site.
+              </p>
+
+              <ul className="mt-7 space-y-3">
+                {[
+                  'Company header, ticket number and work date',
+                  'Project, job number, jobsite address and general contractor',
+                  'Labor, material and equipment tables with subtotals',
+                  'Evidence thumbnails where the browser can load the private links',
+                  'Blank signature lines — never a fabricated approval',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-[13.5px] leading-6 text-body">
+                    <Check size={15} className="mt-1 shrink-0 text-brand-600" aria-hidden="true" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <ButtonLink href="/signup">
+                  Create your workspace
+                  <ArrowRight size={15} aria-hidden="true" />
+                </ButtonLink>
+                <ButtonLink href="/login" variant="secondary">
+                  Log in
+                </ButtonLink>
+              </div>
+            </div>
+
+            <PdfPreview />
+          </div>
+        </section>
+
+        {/* ---------------- Roles ---------------- */}
+        <section id="roles" className="border-y border-line bg-surface py-16 sm:py-20 lg:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl">
+              <p className="eyebrow">Field &amp; office</p>
+              <h2 className="mt-3 text-[1.75rem] font-semibold tracking-[-0.025em] text-ink sm:text-[2rem]">
+                One record, two points of view.
+              </h2>
+            </div>
+
+            <div className="mt-12 grid gap-6 md:grid-cols-2">
+              {audience.map((group) => {
+                const Icon = group.icon;
+                return (
+                  <Card key={group.title} className="p-6 sm:p-7">
+                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand-50 text-brand-700">
+                      <Icon size={19} aria-hidden="true" />
+                    </span>
+                    <h3 className="mt-4 text-[1.0625rem] font-semibold tracking-[-0.015em] text-ink">
+                      {group.title}
+                    </h3>
+                    <ul className="mt-4 space-y-3">
+                      {group.points.map((point) => (
+                        <li key={point} className="flex items-start gap-2.5 text-[13.5px] leading-6 text-body">
+                          <Check size={15} className="mt-1 shrink-0 text-brand-600" aria-hidden="true" />
+                          {point}
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
                 );
               })}
             </div>
           </div>
         </section>
 
-        {/* SECTION 4: HOW AMPTRAIL WORKS */}
-        <section id="how-it-works" className="scroll-mt-20 bg-slate-50 py-16 sm:py-20 lg:py-24">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="eyebrow">Simple Field Workflow</p>
-                <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                  From jobsite condition to verified ticket.
-                </h2>
-              </div>
-              <p className="max-w-md text-xs sm:text-sm text-slate-500 leading-relaxed">
-                Designed for field foremen standing in a mechanical room, not computer specialists sitting at a desk.
-              </p>
-            </div>
-
-            <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {workflowSteps.map((step) => (
-                <div
-                  key={step.step}
-                  className="card relative flex flex-col justify-between p-6 bg-white"
-                >
-                  <div>
-                    <span className="font-mono text-xs font-black text-blue-600">
-                      STEP {step.step}
-                    </span>
-                    <h3 className="mt-4 text-base font-bold text-slate-900">{step.title}</h3>
-                    <p className="mt-2 text-xs text-slate-500 leading-relaxed">{step.copy}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 5: PROJECTS & WORK TICKETS DEEP DIVE */}
-        <section id="features" className="scroll-mt-20 bg-white py-16 sm:py-20 lg:py-24 border-t border-slate-200/80">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-12 lg:grid-cols-2 items-center">
-              <div>
-                <p className="eyebrow">Project-Centric Architecture</p>
-                <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                  Keep every work record tied to the right contract.
-                </h2>
-                <p className="mt-4 text-sm text-slate-600 leading-relaxed">
-                  Every work ticket, photo, and line item belongs to a specific project. Track general contractor contacts, jobsite addresses, and internal job numbers in one place.
-                </p>
-
-                <div className="mt-6 space-y-3.5 text-xs sm:text-sm text-slate-700">
-                  <div className="flex items-start gap-2.5">
-                    <CheckCircle2 size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                    <span>Active and archived project isolation preserves past billing history.</span>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <CheckCircle2 size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                    <span>Real-time aggregation of documented costs across all tickets per job.</span>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <CheckCircle2 size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                    <span>Searchable project filters by job number, GC, or physical address.</span>
-                  </div>
-                </div>
-
-                <div className="mt-8">
-                  <ButtonLink href="/signup">
-                    Start Documenting Projects <ArrowRight size={15} />
-                  </ButtonLink>
-                </div>
-              </div>
-
-              {/* Graphical Visual Box */}
-              <div className="card overflow-hidden bg-slate-900 p-6 sm:p-8 text-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                  <span className="font-mono text-xs font-bold text-blue-400">PROJECT DASHBOARD</span>
-                  <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 font-mono text-[10px] font-bold text-emerald-400">
-                    ACTIVE JOB
-                  </span>
-                </div>
-                <div className="mt-5 space-y-3">
-                  <h3 className="text-xl font-bold">Harborview Tech Campus — Building B</h3>
-                  <p className="text-xs text-slate-400">General Contractor: Hensel Phelps Construction</p>
-                  <p className="text-xs text-slate-400">Job #: PRJ-2026-104 · 800 Harbor Blvd, Seattle, WA</p>
-                </div>
-                <div className="mt-6 grid grid-cols-2 gap-3 border-t border-slate-800 pt-5">
-                  <div className="rounded-xl bg-slate-800/80 p-3">
-                    <p className="text-[10px] uppercase font-bold text-slate-400">Documented Extra Work</p>
-                    <p className="mt-1 font-mono text-lg font-black text-white">$14,820.00</p>
-                  </div>
-                  <div className="rounded-xl bg-slate-800/80 p-3">
-                    <p className="text-[10px] uppercase font-bold text-slate-400">Field Tickets Logged</p>
-                    <p className="mt-1 font-mono text-lg font-black text-white">9 Tickets</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 6 & 7: LABOR, MATERIALS, COSTS & EVIDENCE */}
-        <section className="bg-slate-50 py-16 sm:py-20 lg:py-24 border-t border-slate-200/80">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="eyebrow">Comprehensive T&M Tracking</p>
-              <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                Built specifically for electrical contractors.
-              </h2>
-              <p className="mt-3 text-sm text-slate-500">
-                Fast line-item entries for labor, materials, equipment, and private photo evidence.
-              </p>
-            </div>
-
-            <div className="mt-12 grid gap-6 md:grid-cols-3">
-              {/* Card 1: Labor */}
-              <div className="card p-6 bg-white">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-600">
-                  <Clock3 size={18} />
-                </span>
-                <h3 className="mt-4 text-base font-bold text-slate-900">Crew Labor & Roles</h3>
-                <p className="mt-2 text-xs text-slate-500 leading-relaxed">
-                  Log hours and hourly rates for Journeymen, Apprentices, and Foremen. Live line totals calculate automatically to eliminate arithmetic mistakes.
-                </p>
-              </div>
-
-              {/* Card 2: Materials & Equipment */}
-              <div className="card p-6 bg-white">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-600">
-                  <Wrench size={18} />
-                </span>
-                <h3 className="mt-4 text-base font-bold text-slate-900">Materials & Direct Costs</h3>
-                <p className="mt-2 text-xs text-slate-500 leading-relaxed">
-                  Record conduit sticks, wire runs, breakers, panelboards, lift rentals, and specialty tool fees with quantities and unit pricing.
-                </p>
-              </div>
-
-              {/* Card 3: Photo Evidence */}
-              <div className="card p-6 bg-white">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-600">
-                  <Camera size={18} />
-                </span>
-                <h3 className="mt-4 text-base font-bold text-slate-900">Secure Photo Evidence</h3>
-                <p className="mt-2 text-xs text-slate-500 leading-relaxed">
-                  Take jobsite photos directly with your phone camera. Private cloud storage with encrypted company access and high-resolution lightbox viewing.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 8: PROFESSIONAL PDF RECORDS */}
-        <section id="pdf-records" className="scroll-mt-20 bg-white py-16 sm:py-20 lg:py-24 border-t border-slate-200/80">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-12 lg:grid-cols-2 items-center">
-              <div className="order-2 lg:order-1">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 sm:p-8 shadow-xs">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                      Standard Commercial Work Record
-                    </span>
-                    <FileDown size={16} className="text-blue-600" />
-                  </div>
-                  <ul className="mt-4 space-y-2.5 text-xs text-slate-600">
-                    <li className="flex items-center gap-2">
-                      <Check size={14} className="text-blue-600" />
-                      Subcontractor company branding & contact details
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check size={14} className="text-blue-600" />
-                      Project number, jobsite address, and GC superintendent name
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check size={14} className="text-blue-600" />
-                      Detailed scope explanation and reason outside contract
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check size={14} className="text-blue-600" />
-                      Itemized labor, material, and equipment tables with subtotals
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check size={14} className="text-blue-600" />
-                      Dual signature blocks for field verification and acknowledgment
-                    </li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="order-1 lg:order-2">
-                <p className="eyebrow">Publication-Grade Output</p>
-                <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                  PDF documents you can proudly hand to a general contractor.
-                </h2>
-                <p className="mt-4 text-sm text-slate-600 leading-relaxed">
-                  General contractors reject messy handwritten carbon slips. AmpTrail generates crisp, print-ready 8.5&quot; × 11&quot; PDF records formatted for formal submission and billing review.
-                </p>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <ButtonLink href="/signup">
-                    Try AmpTrail Free <ArrowRight size={15} />
-                  </ButtonLink>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 9: BENEFITS FOR FOREMEN AND OWNERS */}
-        <section id="foremen-owners" className="scroll-mt-20 bg-slate-900 text-white py-16 sm:py-20 lg:py-24">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-2xl text-center">
-              <span className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-400">
-                Field & Office Alignment
-              </span>
-              <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-                Built for the field foreman.<br />
-                Loved by the business owner.
-              </h2>
-            </div>
-
-            <div className="mt-12 grid gap-8 md:grid-cols-2">
-              {/* Foremen */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 sm:p-8">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600 text-white">
-                    <Smartphone size={20} />
-                  </span>
-                  <div>
-                    <h3 className="text-lg font-bold">For Field Foremen</h3>
-                    <p className="text-xs text-slate-400">Fast, friction-free jobsite documentation</p>
-                  </div>
-                </div>
-
-                <ul className="mt-6 space-y-3.5 text-xs text-slate-300">
-                  <li className="flex items-start gap-2.5">
-                    <Check size={14} className="text-blue-400 shrink-0 mt-0.5" />
-                    <span>Complete tickets on your phone in under 3 minutes without typing long essays.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={14} className="text-blue-400 shrink-0 mt-0.5" />
-                    <span>Snap photos directly with your phone camera before conduit runs get covered.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={14} className="text-blue-400 shrink-0 mt-0.5" />
-                    <span>No more lost carbon tickets or arguments about who directed what work.</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Owners & PMs */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 sm:p-8">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-white">
-                    <TrendingUp size={20} />
-                  </span>
-                  <div>
-                    <h3 className="text-lg font-bold">For Owners & Project Managers</h3>
-                    <p className="text-xs text-slate-400">Protect profit margins and accelerate billing</p>
-                  </div>
-                </div>
-
-                <ul className="mt-6 space-y-3.5 text-xs text-slate-300">
-                  <li className="flex items-start gap-2.5">
-                    <Check size={14} className="text-blue-400 shrink-0 mt-0.5" />
-                    <span>Instant visibility into all unbilled extra work across active jobsites.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={14} className="text-blue-400 shrink-0 mt-0.5" />
-                    <span>Standardized, audit-ready PDF exports that GCs accept without endless pushback.</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check size={14} className="text-blue-400 shrink-0 mt-0.5" />
-                    <span>Preserve company margins and stop doing free work for general contractors.</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 10: FAQ ACCORDION */}
-        <section id="faq" className="scroll-mt-20 bg-white py-16 sm:py-20 lg:py-24 border-t border-slate-200/80">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        {/* ---------------- FAQ ---------------- */}
+        <section id="faq" className="py-16 sm:py-20 lg:py-24">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <p className="eyebrow">Straightforward Answers</p>
-              <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                Frequently Asked Questions
+              <p className="eyebrow">Questions</p>
+              <h2 className="mt-3 text-[1.75rem] font-semibold tracking-[-0.025em] text-ink sm:text-[2rem]">
+                Straight answers before you start.
               </h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Everything you need to know about AmpTrail and field T&M tracking.
-              </p>
             </div>
-
-            <div className="mt-10 divide-y divide-slate-200">
-              {faqs.map((faq) => (
-                <details key={faq.q} className="group py-5">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-sm font-bold text-slate-900 marker:hidden">
-                    <span>{faq.q}</span>
-                    <span className="text-base text-blue-600 transition group-open:rotate-45 shrink-0">
-                      +
-                    </span>
-                  </summary>
-                  <p className="mt-3 text-xs sm:text-sm leading-relaxed text-slate-600">
-                    {faq.a}
-                  </p>
-                </details>
-              ))}
+            <div className="mt-10">
+              <FaqAccordion items={faqs} />
             </div>
+            <p className="mt-6 text-center text-[13px] text-muted">
+              Something else on your mind?{' '}
+              <Link href="/contact" className="link">
+                Contact us
+              </Link>
+              .
+            </p>
           </div>
         </section>
 
-        {/* SECTION 11: FINAL CALL TO ACTION */}
-        <section className="bg-gradient-to-br from-blue-600 to-indigo-700 py-16 text-white sm:py-20 lg:py-24">
-          <div className="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8 space-y-6">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-white">
-              <Zap size={14} className="fill-white" /> Protect Your Jobsite Margins
-            </span>
-            <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
-              Stop letting extra work slip away.
-            </h2>
-            <p className="mx-auto max-w-2xl text-sm sm:text-base leading-relaxed text-blue-100">
-              Set up your AmpTrail workspace today. Document crew hours, materials, and photos before the details fade from memory.
-            </p>
-            <div className="pt-2 flex flex-col sm:flex-row justify-center gap-3">
-              <ButtonLink
-                href="/signup"
-                variant="dark"
-                size="lg"
-                className="bg-slate-950 hover:bg-slate-900 text-white shadow-xl"
-              >
-                Create Free Workspace <ArrowRight size={16} />
-              </ButtonLink>
-              <ButtonLink
-                href="/login"
-                variant="secondary"
-                size="lg"
-                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
-              >
-                Existing Member Login
-              </ButtonLink>
+        {/* ---------------- Final CTA ---------------- */}
+        <section className="border-t border-line bg-surface py-16 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="overflow-hidden rounded-2xl bg-ink px-6 py-12 text-white sm:px-12 sm:py-14">
+              <div className="mx-auto max-w-2xl text-center">
+                <h2 className="text-[1.75rem] font-semibold tracking-[-0.025em] sm:text-[2rem]">
+                  Start the record on your next extra work order.
+                </h2>
+                <p className="mt-3 text-[15px] leading-7 text-slate-300">
+                  Create a workspace, add your first project, and document the next change while the
+                  crew is still on site.
+                </p>
+                <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                  <ButtonLink href="/signup" size="lg" className="bg-white text-ink hover:bg-slate-100">
+                    Create your workspace
+                    <ArrowRight size={16} aria-hidden="true" />
+                  </ButtonLink>
+                  <ButtonLink
+                    href="/login"
+                    variant="secondary"
+                    size="lg"
+                    className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                  >
+                    Log in
+                  </ButtonLink>
+                </div>
+                <p className="mt-5 text-[12.5px] text-slate-400">
+                  Free to start. No credit card required.
+                </p>
+              </div>
             </div>
           </div>
         </section>
       </main>
+
       <SiteFooter />
     </>
   );
