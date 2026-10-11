@@ -1,83 +1,113 @@
 'use client';
 
 import { useActionState } from 'react';
-import { CheckCircle2, LoaderCircle } from 'lucide-react';
+import { Building2, Save, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Alert } from '@/components/ui/alert';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Field, Input } from '@/components/ui/field';
 import { updateSettingsAction, type SettingsActionState } from '@/lib/actions/settings';
 
 export function SettingsForm({
   fullName,
   companyName,
+  email,
 }: {
   fullName: string;
   companyName: string;
+  email: string;
 }) {
-  const [state, action, pending] = useActionState(updateSettingsAction, {} as SettingsActionState);
+  const [state, formAction, pending] = useActionState(
+    updateSettingsAction,
+    {} as SettingsActionState
+  );
 
   return (
-    <form action={action} className="card space-y-6 p-6 sm:p-7">
-      <div className="border-b border-slate-100 pb-4">
-        <p className="eyebrow">Profile & Organization</p>
-        <h2 className="mt-1 text-lg font-bold text-slate-900">Workspace Profile</h2>
-        <p className="mt-0.5 text-xs text-slate-500">
-          These details are displayed on work tickets, PDF exports, and team audit logs.
-        </p>
-      </div>
-
+    <form action={formAction} className="space-y-6">
       {state.error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800" role="alert">
+        <Alert tone="danger" role="alert" title="Changes were not saved">
           {state.error}
-        </div>
+        </Alert>
       )}
-
       {state.success && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800" role="status">
-          <CheckCircle2 size={15} className="shrink-0 text-emerald-600" />
-          <span>{state.success}</span>
-        </div>
+        <Alert tone="success" role="status">
+          {state.success}
+        </Alert>
       )}
 
-      <div>
-        <label className="field-label" htmlFor="full_name">
-          Your Full Name
-        </label>
-        <div className="relative">
-          <input
-            className="field-control"
-            id="full_name"
-            name="full_name"
-            maxLength={120}
-            defaultValue={fullName}
-            placeholder="e.g. Mike Henderson"
-          />
-        </div>
-        <p className="field-hint">Your name appears as the author on work tickets you create.</p>
-      </div>
+      <Card flush>
+        <CardHeader
+          title="Your profile"
+          description="Shown on the records you author."
+          icon={<UserRound size={16} aria-hidden="true" />}
+          bordered
+        />
+        <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
+          <Field id="full_name" label="Full name" optional hint="Appears as the author on your tickets.">
+            {(props) => (
+              <Input
+                {...props}
+                name="full_name"
+                defaultValue={fullName}
+                maxLength={120}
+                autoComplete="name"
+                placeholder="Mike Henderson"
+              />
+            )}
+          </Field>
 
-      <div>
-        <label className="field-label" htmlFor="company_name">
-          Subcontractor / Company Name <span className="text-blue-600">*</span>
-        </label>
-        <div className="relative">
-          <input
-            className="field-control"
+          <Field id="email" label="Work email" hint="Managed by Supabase Auth and cannot be changed here.">
+            {(props) => (
+              <Input
+                {...props}
+                id="email"
+                type="email"
+                value={email}
+                readOnly
+                disabled
+              />
+            )}
+          </Field>
+        </div>
+      </Card>
+
+      <Card flush>
+        <CardHeader
+          title="Company details"
+          description="Printed in the header of every exported work record."
+          icon={<Building2 size={16} aria-hidden="true" />}
+          bordered
+        />
+        <div className="p-5 sm:p-6">
+          <Field
             id="company_name"
-            name="company_name"
+            label="Subcontractor / company name"
             required
-            maxLength={160}
-            defaultValue={companyName}
-            placeholder="e.g. Henderson Electric & Controls Inc."
-          />
+            hint="Use the legal or trading name your general contractors know."
+          >
+            {(props) => (
+              <Input
+                {...props}
+                name="company_name"
+                required
+                maxLength={160}
+                defaultValue={companyName}
+                autoComplete="organization"
+                placeholder="Henderson Electric & Controls, Inc."
+              />
+            )}
+          </Field>
         </div>
-        <p className="field-hint">This name is printed in the official header of all PDF work records.</p>
-      </div>
-
-      <div className="border-t border-slate-100 pt-4 flex justify-end">
-        <Button type="submit" disabled={pending} className="min-w-36">
-          {pending && <LoaderCircle size={15} className="animate-spin" />}
-          {pending ? 'Saving Changes…' : 'Save Changes'}
-        </Button>
-      </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface-2/60 px-5 py-4 sm:px-6">
+          <p className="text-[12px] text-muted">
+            Changes apply to future exports. Existing records keep the name they were created with.
+          </p>
+          <Button type="submit" loading={pending}>
+            {!pending && <Save size={15} aria-hidden="true" />}
+            {pending ? 'Saving…' : 'Save changes'}
+          </Button>
+        </div>
+      </Card>
     </form>
   );
 }

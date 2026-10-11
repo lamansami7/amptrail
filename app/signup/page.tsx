@@ -6,16 +6,24 @@ import { SetupNotice } from '@/components/setup-notice';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 
-export const metadata: Metadata = { title: 'Create your account' };
+export const metadata: Metadata = { title: 'Create your workspace' };
 
 export default async function SignupPage() {
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) redirect('/dashboard');
   }
 
-  return <AuthFrame title="Start your field record" subtitle="Create an account for the extra work that cannot wait until the end of the day.">
-    {!isSupabaseConfigured() ? <SetupNotice compact /> : <AuthForm mode="signup" />}
-  </AuthFrame>;
+  return (
+    <AuthFrame
+      eyebrow="Start documenting"
+      title="Create your workspace"
+      subtitle="One account for your crew. Add projects, capture extra work, and keep the record in one place."
+    >
+      {!isSupabaseConfigured() ? <SetupNotice compact /> : <AuthForm mode="signup" />}
+    </AuthFrame>
+  );
 }

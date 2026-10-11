@@ -3,29 +3,31 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, LoaderCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Alert } from '@/components/ui/alert';
+import { Field } from '@/components/ui/field';
 
 function friendlyError(message: string) {
   if (/invalid login credentials/i.test(message))
-    return 'Invalid email or password. Please verify your credentials or reset your password.';
+    return 'That email and password combination did not match. Check for typos or reset your password.';
   if (/email not confirmed/i.test(message))
-    return 'Please confirm your email address before signing in. Check your inbox for the activation link.';
+    return 'This account still needs email confirmation. Open the link we emailed you, then sign in again.';
   if (/user already registered/i.test(message))
-    return 'An account already exists for this email address. Try logging in instead.';
-  if (/password/i.test(message) && /short|weak/i.test(message))
-    return 'Choose a stronger password with at least 8 characters.';
+    return 'An account already exists for this email. Try logging in instead.';
+  if (/password/i.test(message) && /short|weak|characters/i.test(message))
+    return 'Choose a password with at least 8 characters.';
   if (/rate limit|too many requests/i.test(message))
-    return 'Rate limit reached. Please wait a moment before trying again.';
-  return 'Unable to complete sign-in. Please check your internet connection and try again.';
+    return 'Too many attempts in a row. Wait a moment, then try again.';
+  return 'We could not complete that request. Check your connection and try again.';
 }
 
 function safeNextPath(path?: string) {
-  return path?.startsWith('/') && !path.startsWith('//') && !path.includes('\\')
-    ? path
-    : '/dashboard';
+  return path?.startsWith('/') && !path.startsWith('//') && !path.includes('\\') ? path : '/dashboard';
 }
+
+type FieldErrors = { full_name?: string; company_name?: string; email?: string; password?: string };
 
 export function AuthForm({ mode, nextPath }: { mode: 'login' | 'signup'; nextPath?: string }) {
   const router = useRouter();
@@ -33,32 +35,37 @@ export function AuthForm({ mode, nextPath }: { mode: 'login' | 'signup'; nextPat
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const isSignup = mode === 'signup';
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
     setSuccess('');
+    setFieldErrors({});
 
     const form = new FormData(event.currentTarget);
     const email = String(form.get('email') || '').trim();
     const password = String(form.get('password') || '');
     const companyName = String(form.get('company_name') || '').trim();
 
+    const nextErrors: FieldErrors = {};
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-      setError('Please enter a valid work email address.');
-      return;
+      nextErrors.email = 'Enter a valid email address, for example foreman@company.com.';
     }
     if (password.length < 8 || password.length > 128) {
-      setError('Password must be between 8 and 128 characters.');
-      return;
+      nextErrors.password = 'Passwords are between 8 and 128 characters.';
     }
     if (isSignup && !companyName) {
-      setError('Please enter your electrical contracting company name.');
-      return;
+      nextErrors.company_name = 'Enter the electrical contracting company name.';
+    } else if (isSignup && companyName.length > 160) {
+      nextErrors.company_name = 'Company name must be 160 characters or fewer.';
     }
-    if (isSignup && companyName.length > 160) {
-      setError('Company name must be 160 characters or fewer.');
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      const firstId = Object.keys(nextErrors)[0];
+      document.getElementById(firstId)?.focus();
       return;
     }
 
@@ -85,7 +92,7 @@ export function AuthForm({ mode, nextPath }: { mode: 'login' | 'signup'; nextPat
           router.refresh();
         } else {
           setSuccess(
-            'Account created! A confirmation email has been sent. Check your inbox to activate your workspace.'
+            'Account created. We sent a confirmation link to your email — open it to activate the workspace, then sign in.'
           );
         }
       } else {
@@ -106,131 +113,139 @@ export function AuthForm({ mode, nextPath }: { mode: 'login' | 'signup'; nextPat
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+    <form onSubmit={onSubmit} method="post" className="space-y-5" noValidate>
       {isSignup && (
-        <div>
-          <label className="field-label" htmlFor="full_name">
-            Your Name <span className="font-normal text-slate-400">(optional)</span>
-          </label>
-          <input
-            id="full_name"
-            name="full_name"
-            autoComplete="name"
-            maxLength={120}
-            className="field-control"
-            placeholder="e.g. David Miller"
-          />
-        </div>
-      )}
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field id="full_name" label="Your name" optional>
+            {({ id }) => (
+              <input
+                id={id}
+                name="full_name"
+                autoComplete="name"
+                maxLength={120}
+                className="field-control"
+                placeholder="David Miller"
+              />
+            )}
+          </Field>
 
-      {isSignup && (
-        <div>
-          <label className="field-label" htmlFor="company_name">
-            Company Name <span className="text-blue-600">*</span>
-          </label>
-          <input
+          <Field
             id="company_name"
-            name="company_name"
-            autoComplete="organization"
+            label="Company name"
             required
-            maxLength={160}
-            className="field-control"
-            placeholder="e.g. Miller Electric Services"
-          />
+            error={fieldErrors.company_name}
+          >
+            {(props) => (
+              <input
+                {...props}
+                name="company_name"
+                autoComplete="organization"
+                maxLength={160}
+                className="field-control"
+                placeholder="Miller Electric"
+              />
+            )}
+          </Field>
         </div>
       )}
 
-      <div>
-        <label className="field-label" htmlFor="email">
-          Work Email <span className="text-blue-600">*</span>
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          maxLength={254}
-          className="field-control"
-          placeholder="foreman@company.com"
-        />
-      </div>
-
-      <div>
-        <label className="field-label" htmlFor="password">
-          Password <span className="text-blue-600">*</span>
-        </label>
-        <div className="relative">
+      <Field
+        id="email"
+        label="Work email"
+        required
+        error={fieldErrors.email}
+        hint={isSignup ? undefined : undefined}
+      >
+        {(props) => (
           <input
-            id="password"
-            name="password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete={isSignup ? 'new-password' : 'current-password'}
-            required
-            minLength={8}
-            maxLength={128}
-            className="field-control pr-11 font-mono"
-            placeholder={isSignup ? 'At least 8 characters' : 'Enter your password'}
+            {...props}
+            name="email"
+            type="email"
+            autoComplete="email"
+            maxLength={254}
+            className="field-control"
+            placeholder="foreman@company.com"
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 grid w-11 place-items-center text-slate-400 hover:text-slate-700 transition"
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-          >
-            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
-        </div>
+        )}
+      </Field>
 
-        {!isSignup && (
-          <div className="mt-2 text-right">
-            <Link
-              href="/forgot-password"
-              className="text-xs font-semibold text-blue-600 hover:underline"
+      <Field
+        id="password"
+        label="Password"
+        required
+        error={fieldErrors.password}
+        hint={isSignup ? 'At least 8 characters. Longer is better.' : undefined}
+      >
+        {(props) => (
+          <div className="relative">
+            <input
+              {...props}
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete={isSignup ? 'new-password' : 'current-password'}
+              minLength={8}
+              maxLength={128}
+              className="field-control pr-12"
+              placeholder={isSignup ? 'Create a password' : 'Your password'}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="absolute inset-y-1 right-1 grid w-10 place-items-center rounded-md text-subtle transition-colors duration-150 hover:bg-surface-2 hover:text-body"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
             >
-              Forgot password?
-            </Link>
+              {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+            </button>
           </div>
         )}
-      </div>
+      </Field>
+
+      {!isSignup && (
+        <div className="-mt-2 text-right">
+          <Link href="/forgot-password" className="link text-[13px]">
+            Forgot your password?
+          </Link>
+        </div>
+      )}
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800" role="alert">
-          <AlertCircle size={15} className="shrink-0 text-red-600" />
-          <span>{error}</span>
-        </div>
+        <Alert tone="danger" role="alert" title="We couldn’t sign you in">
+          {error}
+        </Alert>
       )}
 
       {success && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800" role="status">
-          <CheckCircle2 size={15} className="shrink-0 text-emerald-600" />
-          <span>{success}</span>
-        </div>
+        <Alert tone="success" role="status" title="Check your inbox">
+          {success}
+        </Alert>
       )}
 
-      <Button type="submit" disabled={pending} className="mt-2 w-full">
-        {pending && <LoaderCircle size={15} className="animate-spin" aria-hidden="true" />}
-        {pending ? 'Processing…' : isSignup ? 'Create Company Workspace' : 'Log In to AmpTrail'}
+      <Button type="submit" size="lg" loading={pending} className="w-full">
+        {pending
+          ? isSignup
+            ? 'Creating workspace…'
+            : 'Signing in…'
+          : isSignup
+            ? 'Create workspace'
+            : 'Sign in'}
       </Button>
 
-      <p className="pt-2 text-center text-xs text-slate-500">
-        {isSignup ? 'Already have a workspace?' : 'Need to document your jobs?'}{' '}
-        <Link
-          href={isSignup ? '/login' : '/signup'}
-          className="font-bold text-blue-600 hover:underline"
-        >
-          {isSignup ? 'Log in' : 'Create an account'}
+      <p className="text-center text-[13px] text-muted">
+        {isSignup ? 'Already have a workspace?' : 'New to AmpTrail?'}{' '}
+        <Link href={isSignup ? '/login' : '/signup'} className="link">
+          {isSignup ? 'Sign in' : 'Create an account'}
         </Link>
       </p>
 
       {isSignup && (
-        <p className="text-center text-[11px] leading-relaxed text-slate-400 pt-1">
-          By registering, you agree to our{' '}
-          <Link href="/terms" className="underline underline-offset-2 hover:text-slate-600">
+        <p className="text-center text-[12px] leading-5 text-subtle">
+          By creating an account you agree to the{' '}
+          <Link href="/terms" className="link text-[12px]">
             Terms
           </Link>{' '}
           and{' '}
-          <Link href="/privacy" className="underline underline-offset-2 hover:text-slate-600">
+          <Link href="/privacy" className="link text-[12px]">
             Privacy Policy
           </Link>
           .

@@ -1,87 +1,102 @@
 import Link from 'next/link';
-import { ArrowLeft, Check, ShieldCheck, Zap } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Lock } from 'lucide-react';
 import { Brand } from '@/components/brand';
+
+const assurances = [
+  'Capture extra work, crew hours and materials in one pass',
+  'Attach jobsite photos before the work is covered',
+  'Export a clean T&M PDF record for review',
+  'Company-scoped data with row-level security in Postgres',
+];
 
 export function AuthFrame({
   children,
+  eyebrow = 'Field documentation workspace',
   title,
   subtitle,
 }: {
   children: React.ReactNode;
+  eyebrow?: string;
   title: string;
   subtitle: string;
 }) {
   return (
-    <main className="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(460px,0.9fr)]">
-      {/* Form Left Side */}
-      <section className="flex min-h-screen flex-col justify-between bg-white px-6 py-8 sm:px-12 lg:px-16 xl:px-24">
-        <header className="flex items-center justify-between">
+    <main className="min-h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(28rem,0.82fr)]">
+      <section className="flex min-h-dvh flex-col bg-surface px-5 py-6 sm:px-10 sm:py-8 lg:px-16">
+        <header className="flex items-center justify-between gap-4">
           <Brand />
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
           >
-            <ArrowLeft size={14} /> Back to homepage
+            <ArrowLeft size={14} aria-hidden="true" />
+            Back to site
           </Link>
         </header>
 
-        <div className="mx-auto w-full max-w-[420px] py-10">
-          <span className="eyebrow">Electrical Subcontractor Workspace</span>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+        <div className="mx-auto flex w-full max-w-[26rem] flex-1 flex-col justify-center py-10">
+          <p className="eyebrow">{eyebrow}</p>
+          <h1 className="mt-3 text-[1.625rem] font-semibold leading-tight tracking-[-0.025em] text-ink">
             {title}
           </h1>
-          <p className="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">{subtitle}</p>
+          <p className="mt-2 text-[14px] leading-6 text-muted">{subtitle}</p>
           <div className="mt-8">{children}</div>
         </div>
 
-        <footer className="text-[11px] text-slate-400">
-          AmpTrail · Field T&M Documentation & Evidence Tracking
+        <footer className="mx-auto w-full max-w-[26rem] text-[12px] text-subtle">
+          <Link href="/terms" className="transition-colors duration-150 hover:text-body">
+            Terms
+          </Link>
+          <span aria-hidden="true" className="px-2">
+            ·
+          </span>
+          <Link href="/privacy" className="transition-colors duration-150 hover:text-body">
+            Privacy
+          </Link>
+          <span aria-hidden="true" className="px-2">
+            ·
+          </span>
+          <Link href="/contact" className="transition-colors duration-150 hover:text-body">
+            Support
+          </Link>
         </footer>
       </section>
 
-      {/* Brand Visual Right Side */}
-      <aside className="relative hidden overflow-hidden bg-slate-950 px-12 py-16 text-white lg:flex lg:flex-col lg:justify-between xl:px-16">
-        {/* Glow ambient background */}
-        <div className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-blue-600/15 blur-3xl" aria-hidden="true" />
-        <div className="absolute -bottom-20 -left-20 h-96 w-96 rounded-full bg-indigo-600/10 blur-3xl" aria-hidden="true" />
+      <aside className="relative hidden flex-col justify-between overflow-hidden bg-ink px-12 py-14 text-white lg:flex xl:px-16">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-[radial-gradient(90%_70%_at_100%_0%,rgba(37,99,235,0.28),transparent_60%)]"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:52px_52px] [mask-image:radial-gradient(70%_60%_at_70%_20%,black,transparent)]"
+        />
 
-        <div className="relative">
-          <span className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-blue-400">
-            <Zap size={13} className="fill-blue-400" />
-            Built for Commercial Electrical
-          </span>
-        </div>
+        <p className="relative text-[12px] font-medium uppercase tracking-[0.1em] text-brand-300">
+          AmpTrail
+        </p>
 
-        <div className="relative max-w-lg space-y-6">
-          <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">
-            Document the work.<br />
-            <span className="text-blue-500">Protect the paper trail.</span>
+        <div className="relative max-w-md">
+          <h2 className="text-[1.75rem] font-semibold leading-[1.15] tracking-[-0.025em] xl:text-[2rem]">
+            Document the work.
+            <br />
+            <span className="text-brand-300">Protect the paper trail.</span>
           </h2>
-          <p className="text-sm leading-relaxed text-slate-400">
-            Never let extra conduit runs, rerouted feeds, or unforeseen site obstructions slip through the cracks without verifiable records.
-          </p>
-
-          <ul className="space-y-3 pt-2 text-xs text-slate-300">
-            {[
-              'Mobile-friendly T&M ticket documentation in under 3 minutes',
-              'Geotagged jobsite photos and field notes tied to customer projects',
-              'Export audit-ready PDF records with dual signature blocks',
-              'Multi-tenant PostgreSQL isolation with Row-Level Security',
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-2.5">
-                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-blue-500/20 text-blue-400">
-                  <Check size={12} strokeWidth={3} />
-                </span>
-                <span>{item}</span>
+          <ul className="mt-8 space-y-4">
+            {assurances.map((item) => (
+              <li key={item} className="flex items-start gap-3 text-[13.5px] leading-6 text-slate-300">
+                <CheckCircle2 size={16} className="mt-1 shrink-0 text-brand-400" aria-hidden="true" />
+                {item}
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="relative border-t border-slate-800/80 pt-4 text-[11px] leading-relaxed text-slate-500">
-          <ShieldCheck size={14} className="inline mr-1 text-blue-400" />
-          AmpTrail is an internal tracking tool. Tickets document field activity and do not constitute contract approval or invoicing guarantees.
-        </div>
+        <p className="relative flex max-w-md items-start gap-2.5 border-t border-white/10 pt-5 text-[12px] leading-5 text-slate-400">
+          <Lock size={14} className="mt-0.5 shrink-0 text-brand-300" aria-hidden="true" />
+          AmpTrail is an internal tracking tool. Recorded totals and workflow statuses are not
+          customer sign-off, a verified change order, or a guarantee of payment.
+        </p>
       </aside>
     </main>
   );

@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { formatCurrency, formatDate, formatStatus, statusClasses, initials } from '@/lib/utils';
-import { ticketStatusOptions } from '@/lib/tickets/status';
+import {
+  cn,
+  formatCurrency,
+  formatCurrencyCompact,
+  formatDate,
+  formatQuantity,
+  formatRelative,
+  formatStatus,
+  initials,
+  pluralize,
+} from '@/lib/utils';
+import { statusTone, ticketStatusMeta, ticketStatusOptions } from '@/lib/tickets/status';
 
 describe('status and utility formatting', () => {
   it('formats status values into readable title-cased labels', () => {
@@ -22,13 +32,22 @@ describe('status and utility formatting', () => {
     expect(values).toContain('invoiced');
   });
 
-  it('assigns distinctive classes for each status', () => {
-    expect(statusClasses('draft')).toContain('bg-slate-100');
-    expect(statusClasses('ready_for_review')).toContain('bg-amber-50');
-    expect(statusClasses('submitted')).toContain('bg-blue-50');
-    expect(statusClasses('approved')).toContain('bg-emerald-50');
-    expect(statusClasses('rejected')).toContain('bg-rose-50');
-    expect(statusClasses('invoiced')).toContain('bg-indigo-50');
+  it('assigns a distinct, meaningful tone to every status', () => {
+    const tones = ticketStatusOptions.map((option) => statusTone(option.value));
+    expect(new Set(tones).size).toBe(ticketStatusOptions.length);
+    expect(statusTone('approved')).toBe('success');
+    expect(statusTone('rejected')).toBe('danger');
+    expect(statusTone('ready_for_review')).toBe('warning');
+    expect(statusTone('submitted')).toBe('brand');
+    // Unknown statuses must not throw or lose meaning.
+    expect(statusTone('mystery')).toBe('neutral');
+  });
+
+  it('defines a label and dot colour for every status', () => {
+    for (const option of ticketStatusOptions) {
+      expect(ticketStatusMeta[option.value].label).toBeTruthy();
+      expect(ticketStatusMeta[option.value].dot).toMatch(/^bg-/);
+    }
   });
 
   it('formats currency with two decimal places and commas', () => {
@@ -42,6 +61,34 @@ describe('status and utility formatting', () => {
     expect(initials('david@electric.com')).toBe('DE');
     expect(initials('Single')).toBe('S');
     expect(initials('')).toBe('A');
+  });
+
+  it('trims trailing zeros from quantities and hours', () => {
+    expect(formatQuantity(12.5)).toBe('12.5');
+    expect(formatQuantity(120)).toBe('120');
+    expect(formatQuantity(1.005)).toBe('1.005');
+    expect(formatQuantity(1234.5)).toBe('1,234.5');
+  });
+
+  it('formats compact currency for summary copy', () => {
+    expect(formatCurrencyCompact(640)).toBe('$640.00');
+    expect(formatCurrencyCompact(12400)).toBe('$12.4K');
+  });
+
+  it('pluralises counts without inventing grammar', () => {
+    expect(pluralize(1, 'ticket')).toBe('1 ticket');
+    expect(pluralize(2, 'ticket')).toBe('2 tickets');
+    expect(pluralize(0, 'entry', 'entries')).toBe('0 entries');
+  });
+
+  it('reports relative time and falls back to "just now"', () => {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    expect(formatRelative(twoHoursAgo)).toBe('2 hours ago');
+    expect(formatRelative(new Date().toISOString())).toBe('just now');
+  });
+
+  it('joins conditional class names', () => {
+    expect(cn('a', false, undefined, ['b', null], { c: true, d: false })).toBe('a b c');
   });
 
   it('formats dates consistently', () => {

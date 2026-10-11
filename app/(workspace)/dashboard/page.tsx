@@ -2,29 +2,44 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   ArrowRight,
-  Briefcase,
-  CheckCircle2,
+  Camera,
+  CircleDollarSign,
+  ClipboardCheck,
+  FolderKanban,
   FolderPlus,
   Plus,
-  Receipt,
-  Camera,
-  AlertCircle,
+  ReceiptText,
   TrendingUp,
-  FileClock,
 } from 'lucide-react';
 import { requireWorkspace } from '@/lib/data/workspace';
-import { PageHeader, SectionHeading, DataSetupMessage, EmptyState } from '@/components/workspace/app-page';
+import { WorkspaceDataNotice } from '@/components/workspace/data-notice';
+import { Alert } from '@/components/ui/alert';
 import { ButtonLink } from '@/components/ui/button';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { calculateTicketTotals } from '@/lib/tickets/totals';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat';
+import { TableShell, Td, Th, Tr } from '@/components/ui/table';
 import { StatusBadge } from '@/components/workspace/status-badge';
+import { statusDotClass, ticketStatusOptions } from '@/lib/tickets/status';
+import { calculateTicketTotals } from '@/lib/tickets/totals';
+import { formatCurrency, formatDate, formatRelative, pluralize } from '@/lib/utils';
 
-export const metadata: Metadata = { title: 'Dashboard' };
+export const metadata: Metadata = { title: 'Overview' };
+
+// Shared status metadata keeps the dashboard consistent with every badge.
+const statusOrder = ticketStatusOptions;
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export default async function DashboardPage() {
   const { supabase, user, workspace } = await requireWorkspace();
 
-  // Fetch all counts, recent tickets, recent activity, and active projects in parallel
   const [
     projectsRes,
     allTicketsRes,
@@ -33,16 +48,14 @@ export default async function DashboardPage() {
     allLaborRes,
     allMaterialsRes,
     allCostsRes,
+    evidenceRes,
   ] = await Promise.all([
     supabase
       .from('projects')
       .select('id, name, project_number, site_address, general_contractor, is_archived, updated_at')
       .eq('company_id', workspace.id)
       .order('updated_at', { ascending: false }),
-    supabase
-      .from('work_tickets')
-      .select('id, status')
-      .eq('company_id', workspace.id),
+    supabase.from('work_tickets').select('id, status, occurred_at').eq('company_id', workspace.id),
     supabase
       .from('work_tickets')
       .select('id, project_id, ticket_number, description, status, occurred_at, updated_at')
@@ -51,22 +64,17 @@ export default async function DashboardPage() {
       .limit(6),
     supabase
       .from('activity_events')
-      .select('id, event_type, entity_type, entity_id, description, created_at')
+      .select('id, event_type, description, created_at')
       .eq('company_id', workspace.id)
       .order('created_at', { ascending: false })
       .limit(6),
-    supabase
-      .from('labor_entries')
-      .select('ticket_id, hours, rate')
-      .eq('company_id', workspace.id),
+    supabase.from('labor_entries').select('ticket_id, hours, rate').eq('company_id', workspace.id),
     supabase
       .from('material_entries')
       .select('ticket_id, quantity, unit_cost')
       .eq('company_id', workspace.id),
-    supabase
-      .from('ticket_costs')
-      .select('ticket_id, quantity, unit_cost')
-      .eq('company_id', workspace.id),
+    supabase.from('ticket_costs').select('ticket_id, quantity, unit_cost').eq('company_id', workspace.id),
+    supabase.from('evidence_files').select('id', { count: 'exact', head: true }).eq('company_id', workspace.id),
   ]);
 
   if (
@@ -79,438 +87,499 @@ export default async function DashboardPage() {
     allCostsRes.error
   ) {
     return (
-      <>
-        <PageHeader title="Overview" description="A current view of your field records." />
-        <DataSetupMessage />
-      </>
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Workspace"
+          title="Overview"
+          description="A live picture of your documented field work."
+        />
+        <WorkspaceDataNotice />
+      </div>
     );
   }
 
-  const allProjects = projectsRes.data || [];
-  const activeProjects = allProjects.filter((p) => !p.is_archived);
-  const allTickets = allTicketsRes.data || [];
+  const allProjects = projectsRes.data ?? [];
+  const activeProjects = allProjects.filter((project) => !project.is_archived);
+  const allTickets = allTicketsRes.data ?? [];
+  const recentTickets = recentTicketsRes.data ?? [];
+  const labourRows = allLaborRes.data ?? [];
+  const materialRows = allMaterialsRes.data ?? [];
+  const costRows = allCostsRes.data ?? [];
+  const evidenceCount = evidenceRes.count ?? 0;
 
-  // Status counts
-  const draftCount = allTickets.filter((t) => t.status === 'draft').length;
-  const reviewCount = allTickets.filter((t) => t.status === 'ready_for_review').length;
-  const submittedCount = allTickets.filter((t) => t.status === 'submitted').length;
-  const approvedCount = allTickets.filter((t) => t.status === 'approved').length;
-  const invoicedCount = allTickets.filter((t) => t.status === 'invoiced').length;
-  const rejectedCount = allTickets.filter((t) => t.status === 'rejected').length;
-  const openCount = draftCount + reviewCount + submittedCount;
+  const counts = statusOrder.reduce<Record<string, number>>((accumulator, status) => {
+    accumulator[status.value] = allTickets.filter((ticket) => ticket.status === status.value).length;
+    return accumulator;
+  }, {});
+  const openCount = (counts.draft ?? 0) + (counts.ready_for_review ?? 0) + (counts.submitted ?? 0);
 
-  // Workspace-wide documented total calculation
   const workspaceTotals = calculateTicketTotals({
-    labor: (allLaborRes.data || []).map((l) => ({ hours: Number(l.hours), rate: Number(l.rate) })),
-    materials: (allMaterialsRes.data || []).map((m) => ({ quantity: Number(m.quantity), unit_cost: Number(m.unit_cost) })),
-    costs: (allCostsRes.data || []).map((c) => ({ quantity: Number(c.quantity), unit_cost: Number(c.unit_cost) })),
+    labor: labourRows.map((row) => ({ hours: Number(row.hours), rate: Number(row.rate) })),
+    materials: materialRows.map((row) => ({ quantity: Number(row.quantity), unit_cost: Number(row.unit_cost) })),
+    costs: costRows.map((row) => ({ quantity: Number(row.quantity), unit_cost: Number(row.unit_cost) })),
   });
 
-  // Map project names
-  const projectMap = new Map(allProjects.map((p) => [p.id, p]));
-
-  // Calculate totals for recent tickets
-  const recentTickets = recentTicketsRes.data || [];
-  const laborRows = allLaborRes.data || [];
-  const materialRows = allMaterialsRes.data || [];
-  const costRows = allCostsRes.data || [];
-
-  const ticketTotals = new Map<string, number>();
-  for (const t of recentTickets) {
-    const tTotal = calculateTicketTotals({
-      labor: laborRows.filter((r) => r.ticket_id === t.id).map((r) => ({ hours: Number(r.hours), rate: Number(r.rate) })),
-      materials: materialRows.filter((r) => r.ticket_id === t.id).map((r) => ({ quantity: Number(r.quantity), unit_cost: Number(r.unit_cost) })),
-      costs: costRows.filter((r) => r.ticket_id === t.id).map((r) => ({ quantity: Number(r.quantity), unit_cost: Number(r.unit_cost) })),
-    }).total;
-    ticketTotals.set(t.id, tTotal);
+  const totalsByTicket = new Map<string, number>();
+  for (const ticket of recentTickets) {
+    totalsByTicket.set(
+      ticket.id,
+      calculateTicketTotals({
+        labor: labourRows
+          .filter((row) => row.ticket_id === ticket.id)
+          .map((row) => ({ hours: Number(row.hours), rate: Number(row.rate) })),
+        materials: materialRows
+          .filter((row) => row.ticket_id === ticket.id)
+          .map((row) => ({ quantity: Number(row.quantity), unit_cost: Number(row.unit_cost) })),
+        costs: costRows
+          .filter((row) => row.ticket_id === ticket.id)
+          .map((row) => ({ quantity: Number(row.quantity), unit_cost: Number(row.unit_cost) })),
+      }).total
+    );
   }
 
-  // Attention needed items
-  const attentionItems: Array<{ title: string; count: number; href: string; tone: string }> = [];
-  if (draftCount > 0) {
-    attentionItems.push({
-      title: `${draftCount} draft ticket${draftCount === 1 ? '' : 's'} waiting for review`,
-      count: draftCount,
-      href: '/tickets?status=draft',
-      tone: 'border-slate-300 bg-slate-50 text-slate-800',
-    });
-  }
-  if (reviewCount > 0) {
-    attentionItems.push({
-      title: `${reviewCount} ticket${reviewCount === 1 ? '' : 's'} ready for customer submission`,
-      count: reviewCount,
-      href: '/tickets?status=ready_for_review',
-      tone: 'border-amber-200 bg-amber-50/80 text-amber-900',
-    });
-  }
-
-  const firstName = user.user_metadata?.full_name?.split(' ')[0] || 'there';
+  const projectById = new Map(allProjects.map((project) => [project.id, project]));
+  const firstName = (user.user_metadata?.full_name as string | undefined)?.split(' ')[0] ?? '';
   const hasContent = allProjects.length > 0 || allTickets.length > 0;
+  const totalTickets = allTickets.length;
+
+  const attention = [
+    counts.ready_for_review
+      ? {
+          title: pluralize(counts.ready_for_review, 'ticket') + ' ready for review',
+          body: 'Verify the details, then submit to the general contractor.',
+          href: '/tickets?status=ready_for_review',
+          cta: 'Review tickets',
+          tone: 'warning' as const,
+        }
+      : null,
+    counts.draft
+      ? {
+          title: pluralize(counts.draft, 'draft ticket') + ' not submitted',
+          body: 'Drafts are not visible to anyone else yet — finish them while details are fresh.',
+          href: '/tickets?status=draft',
+          cta: 'Finish drafts',
+          tone: 'info' as const,
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    title: string;
+    body: string;
+    href: string;
+    cta: string;
+    tone: 'warning' | 'info';
+  }>;
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="eyebrow">Field Command Center</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-            Welcome back, {firstName}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Real-time tracking of documented extra work, jobsite projects, and field evidence.
-          </p>
-        </div>
+    <div className="space-y-6 sm:space-y-7">
+      <PageHeader
+        eyebrow={formatDate(new Date().toISOString(), {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+        })}
+        title={firstName ? `${greeting()}, ${firstName}` : greeting()}
+        description={`Everything documented across ${workspace.name} — extra work, crew hours, materials and jobsite evidence.`}
+        action={
+          <>
+            <ButtonLink href={activeProjects.length ? '/tickets/new' : '/projects/new'}>
+              <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
+              {activeProjects.length ? 'New work ticket' : 'Create first project'}
+            </ButtonLink>
+            <ButtonLink href="/projects/new" variant="secondary">
+              <FolderPlus size={15} aria-hidden="true" />
+              <span className="hidden sm:inline">New project</span>
+              <span className="sm:hidden">Project</span>
+            </ButtonLink>
+          </>
+        }
+      />
 
-        {/* Quick Action Toolbar */}
-        <div className="flex flex-wrap items-center gap-2">
-          <ButtonLink
-            href={activeProjects.length ? '/tickets/new' : '/projects/new'}
-            className="shadow-sm"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-            <span>{activeProjects.length ? 'New Work Ticket' : 'Create First Project'}</span>
-          </ButtonLink>
-          <ButtonLink href="/projects/new" variant="secondary">
-            <FolderPlus size={15} />
-            <span>New Project</span>
-          </ButtonLink>
-          <ButtonLink href="/evidence" variant="secondary" className="hidden sm:inline-flex">
-            <Camera size={15} />
-            <span>Upload Evidence</span>
-          </ButtonLink>
-        </div>
-      </div>
-
-      {/* Onboarding State if totally empty */}
+      {/* Getting started — only while the workspace is genuinely empty */}
       {!hasContent && (
-        <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/70 via-white to-slate-50 p-6 sm:p-8">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-600/10 px-3 py-1 text-xs font-bold text-blue-700">
-              Getting Started with AmpTrail
-            </span>
-            <h2 className="mt-3 text-xl font-bold text-slate-900 sm:text-2xl">
-              Set up your first job in less than 2 minutes.
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              AmpTrail protects your margins by making extra work simple to capture in the field before details get lost. Start by adding your first project, then document time and materials on a work ticket.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <ButtonLink href="/projects/new">
-                <Plus size={16} /> Create Your First Project
-              </ButtonLink>
-              <ButtonLink href="/contact" variant="secondary">
-                Learn Best Practices
-              </ButtonLink>
+        <Card className="overflow-hidden">
+          <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-10 lg:p-8">
+            <div>
+              <p className="eyebrow">Getting started</p>
+              <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-ink">
+                Document your first piece of extra work.
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted">
+                AmpTrail keeps a clean record of work that falls outside the contract — who directed
+                it, what it cost, and what the jobsite looked like at the time. Three steps is all it
+                takes to get your first record on file.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <ButtonLink href="/projects/new">
+                  <Plus size={16} aria-hidden="true" />
+                  Create your first project
+                </ButtonLink>
+                <ButtonLink href="/tickets" variant="secondary">
+                  How tickets work
+                </ButtonLink>
+              </div>
             </div>
+
+            <ol className="space-y-3">
+              {[
+                {
+                  title: 'Add the project',
+                  body: 'Job name, number, jobsite address and the general contractor.',
+                },
+                {
+                  title: 'Capture the work ticket',
+                  body: 'Describe the extra work, then add labor hours, materials and equipment.',
+                },
+                {
+                  title: 'Attach evidence and export',
+                  body: 'Snap photos on site, then download a professional PDF record.',
+                },
+              ].map((step, index) => (
+                <li key={step.title} className="flex gap-3 rounded-xl border border-line bg-surface-2/60 p-4">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-600 text-[12px] font-semibold text-white">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="text-[13.5px] font-semibold text-ink">{step.title}</p>
+                    <p className="mt-0.5 text-[13px] leading-5 text-muted">{step.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Primary Metrics Grid */}
-      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Documented Work Value */}
-        <div className="card relative overflow-hidden p-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Documented Work Value
-            </p>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-600">
-              <TrendingUp size={18} />
-            </span>
-          </div>
-          <p className="mt-3 font-mono text-2xl font-black tracking-tight text-slate-900 sm:text-3xl tabular-nums">
-            {formatCurrency(workspaceTotals.total)}
-          </p>
-          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-xs text-slate-500">
-            <span>Labor: {formatCurrency(workspaceTotals.labor)}</span>
-            <span>Mat/Other: {formatCurrency(workspaceTotals.materials + workspaceTotals.other)}</span>
-          </div>
-        </div>
-
-        {/* Active Projects */}
-        <div className="card p-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Active Projects
-            </p>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-sky-50 text-sky-700">
-              <Briefcase size={18} />
-            </span>
-          </div>
-          <p className="mt-3 font-mono text-2xl font-black tracking-tight text-slate-900 sm:text-3xl tabular-nums">
-            {activeProjects.length}
-          </p>
-          <p className="mt-3 border-t border-slate-100 pt-2.5 text-xs text-slate-500">
-            {allProjects.length - activeProjects.length} archived project{allProjects.length - activeProjects.length === 1 ? '' : 's'}
-          </p>
-        </div>
-
-        {/* Open Work Tickets */}
-        <div className="card p-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Open Work Tickets
-            </p>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-700">
-              <FileClock size={18} />
-            </span>
-          </div>
-          <p className="mt-3 font-mono text-2xl font-black tracking-tight text-slate-900 sm:text-3xl tabular-nums">
-            {openCount}
-          </p>
-          <p className="mt-3 border-t border-slate-100 pt-2.5 text-xs text-slate-500">
-            {draftCount} draft · {reviewCount} ready for review
-          </p>
-        </div>
-
-        {/* Approved Records */}
-        <div className="card p-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Marked Approved
-            </p>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
-              <CheckCircle2 size={18} />
-            </span>
-          </div>
-          <p className="mt-3 font-mono text-2xl font-black tracking-tight text-slate-900 sm:text-3xl tabular-nums">
-            {approvedCount}
-          </p>
-          <p className="mt-3 border-t border-slate-100 pt-2.5 text-xs text-slate-500">
-            {invoicedCount} invoiced · internal team status
-          </p>
-        </div>
-      </div>
-
-      {/* Attention Needed Banner */}
-      {attentionItems.length > 0 && (
-        <div className="space-y-2">
-          {attentionItems.map((item, idx) => (
-            <div
-              key={idx}
-              className={`flex items-center justify-between rounded-xl border px-4 py-3 text-xs sm:text-sm ${item.tone}`}
-            >
-              <div className="flex items-center gap-2.5">
-                <AlertCircle size={16} className="shrink-0" />
-                <span className="font-semibold">{item.title}</span>
+      {/* Attention strip */}
+      {attention.length > 0 && (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {attention.map((item) => (
+            <Alert key={item.title} tone={item.tone} title={item.title}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[13px]">{item.body}</span>
+                <Link href={item.href} className="link inline-flex items-center gap-1 text-[13px]">
+                  {item.cta}
+                  <ArrowRight size={13} aria-hidden="true" />
+                </Link>
               </div>
-              <Link
-                href={item.href}
-                className="inline-flex items-center gap-1 font-bold underline underline-offset-2 hover:opacity-80 transition"
-              >
-                Review tickets <ArrowRight size={13} />
-              </Link>
-            </div>
+            </Alert>
           ))}
         </div>
       )}
 
-      {/* Ticket Status Breakdown Bar */}
-      {allTickets.length > 0 && (
-        <div className="card p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600">
-              Ticket Status Distribution ({allTickets.length} Total)
-            </h2>
-            <Link href="/tickets" className="text-xs font-bold text-blue-600 hover:underline">
-              View all
+      {/* KPIs */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Documented work value"
+          value={formatCurrency(workspaceTotals.total)}
+          context={`Across ${pluralize(totalTickets, 'work ticket')}`}
+          tone="brand"
+          icon={<CircleDollarSign size={17} aria-hidden="true" />}
+          footer={
+            <dl className="flex items-center justify-between gap-2 text-[12px]">
+              <div>
+                <dt className="text-subtle">Labor</dt>
+                <dd className="font-semibold text-body">{formatCurrency(workspaceTotals.labor)}</dd>
+              </div>
+              <div>
+                <dt className="text-subtle">Materials</dt>
+                <dd className="font-semibold text-body">{formatCurrency(workspaceTotals.materials)}</dd>
+              </div>
+              <div>
+                <dt className="text-subtle">Equipment</dt>
+                <dd className="font-semibold text-body">{formatCurrency(workspaceTotals.other)}</dd>
+              </div>
+            </dl>
+          }
+        />
+        <StatCard
+          label="Open tickets"
+          value={openCount}
+          context={`${counts.draft ?? 0} draft · ${counts.ready_for_review ?? 0} ready · ${counts.submitted ?? 0} submitted`}
+          tone={openCount > 0 ? 'warning' : 'neutral'}
+          icon={<ClipboardCheck size={17} aria-hidden="true" />}
+          footer={
+            <Link href="/tickets" className="link inline-flex items-center gap-1 text-[13px]">
+              Open the ticket board
+              <ArrowRight size={13} aria-hidden="true" />
+            </Link>
+          }
+        />
+        <StatCard
+          label="Active projects"
+          value={activeProjects.length}
+          context={
+            allProjects.length - activeProjects.length > 0
+              ? `${pluralize(allProjects.length - activeProjects.length, 'project')} archived`
+              : 'No archived projects'
+          }
+          icon={<FolderKanban size={17} aria-hidden="true" />}
+          footer={
+            <Link href="/projects" className="link inline-flex items-center gap-1 text-[13px]">
+              Manage projects
+              <ArrowRight size={13} aria-hidden="true" />
+            </Link>
+          }
+        />
+        <StatCard
+          label="Evidence photos"
+          value={evidenceCount}
+          context="Private, company-scoped storage"
+          icon={<Camera size={17} aria-hidden="true" />}
+          footer={
+            <Link href="/evidence" className="link inline-flex items-center gap-1 text-[13px]">
+              Open evidence library
+              <ArrowRight size={13} aria-hidden="true" />
+            </Link>
+          }
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        {/* Recent tickets */}
+        <Card flush>
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
+            <div>
+              <h2 className="h3">Recent work tickets</h2>
+              <p className="mt-0.5 text-[13px] text-muted">Most recently updated field records</p>
+            </div>
+            <Link href="/tickets" className="link inline-flex items-center gap-1 text-[13px]">
+              All tickets
+              <ArrowRight size={13} aria-hidden="true" />
             </Link>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            {[
-              { label: 'Draft', count: draftCount, status: 'draft' },
-              { label: 'Ready for Review', count: reviewCount, status: 'ready_for_review' },
-              { label: 'Submitted', count: submittedCount, status: 'submitted' },
-              { label: 'Approved', count: approvedCount, status: 'approved' },
-              { label: 'Invoiced', count: invoicedCount, status: 'invoiced' },
-              { label: 'Rejected', count: rejectedCount, status: 'rejected' },
-            ].map((item) => (
-              <Link
-                key={item.status}
-                href={`/tickets?status=${item.status}`}
-                className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-center transition hover:border-slate-300 hover:bg-white"
-              >
-                <StatusBadge status={item.status} size="xs" />
-                <span className="mt-2 font-mono text-lg font-black text-slate-900 tabular-nums">
-                  {item.count}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Two Column Layout: Recent Tickets & Sidebar (Projects + Activity) */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-        {/* Left Column: Recent Work Tickets */}
-        <div className="card p-5 sm:p-6">
-          <SectionHeading
-            title="Recent Work Tickets"
-            subtitle="Most recently updated field records"
-            action={
-              <Link
-                href="/tickets"
-                className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline"
-              >
-                All Tickets <ArrowRight size={13} />
-              </Link>
-            }
-          />
-
-          {!recentTickets.length ? (
-            <div className="py-6">
+          {recentTickets.length === 0 ? (
+            <div className="px-5 pb-5 sm:px-6 sm:pb-6">
               <EmptyState
-                icon={<Receipt size={22} />}
-                title="No work tickets recorded yet"
+                icon={<ReceiptText size={20} aria-hidden="true" />}
+                title="No work tickets yet"
                 description={
                   activeProjects.length
-                    ? 'Start capturing extra work while crew members are still on site.'
-                    : 'Create your first project to connect jobsite work records.'
+                    ? 'Capture extra work on site while the crew is still there.'
+                    : 'Add a project first — every ticket belongs to a jobsite.'
                 }
                 action={
                   <ButtonLink href={activeProjects.length ? '/tickets/new' : '/projects/new'}>
-                    <Plus size={15} />
-                    {activeProjects.length ? 'Create First Ticket' : 'Create Project First'}
+                    <Plus size={15} aria-hidden="true" />
+                    {activeProjects.length ? 'Create first ticket' : 'Create project'}
                   </ButtonLink>
                 }
               />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200/80 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="pb-3 font-bold">Ticket</th>
-                    <th className="pb-3 font-bold">Project</th>
-                    <th className="pb-3 font-bold">Status</th>
-                    <th className="pb-3 text-right font-bold">Documented Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recentTickets.map((ticket) => {
-                    const project = projectMap.get(ticket.project_id);
-                    const total = ticketTotals.get(ticket.id) || 0;
-                    return (
-                      <tr
-                        key={ticket.id}
-                        className="group transition hover:bg-slate-50/80"
+            <>
+              {/* Phones: the total must never be off-screen. */}
+              <ul className="divide-y divide-line border-t border-line md:hidden">
+                {recentTickets.map((ticket) => {
+                  const project = projectById.get(ticket.project_id);
+                  return (
+                    <li key={ticket.id}>
+                      <Link
+                        href={`/tickets/${ticket.id}`}
+                        className="block px-5 py-3.5 transition-colors duration-150 active:bg-surface-2"
                       >
-                        <td className="py-3.5 pr-3">
-                          <Link href={`/tickets/${ticket.id}`} className="block">
-                            <span className="font-mono text-xs font-bold text-blue-600 group-hover:underline">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className="whitespace-nowrap font-mono text-[13px] font-semibold text-brand-700">
                               {ticket.ticket_number}
                             </span>
-                            <p className="line-clamp-1 max-w-[220px] text-xs font-medium text-slate-800">
-                              {ticket.description}
-                            </p>
-                            <span className="text-[11px] text-slate-400">
+                            <span className="ml-2 whitespace-nowrap text-[12px] text-subtle">
                               {formatDate(ticket.occurred_at)}
                             </span>
-                          </Link>
-                        </td>
-                        <td className="py-3.5 pr-3">
-                          <Link href={`/projects/${ticket.project_id}`} className="block">
-                            <p className="truncate text-xs font-semibold text-slate-700 hover:text-blue-600">
-                              {project?.name || 'Project'}
+                            <p className="mt-1 truncate text-[13.5px] font-medium text-ink">
+                              {project?.name ?? 'Project'}
                             </p>
-                            {project?.project_number && (
-                              <p className="text-[11px] text-slate-400">{project.project_number}</p>
-                            )}
-                          </Link>
-                        </td>
-                        <td className="py-3.5 pr-3">
-                          <StatusBadge status={ticket.status} size="xs" />
-                        </td>
-                        <td className="py-3.5 text-right">
-                          <span className="font-mono text-xs font-bold text-slate-900 tabular-nums">
-                            {formatCurrency(total)}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1.5">
+                            <span className="whitespace-nowrap font-mono text-[13px] font-semibold text-ink">
+                              {formatCurrency(totalsByTicket.get(ticket.id) ?? 0)}
+                            </span>
+                            <StatusBadge status={ticket.status} size="xs" />
+                          </div>
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <div className="hidden border-t border-line md:block">
+                <TableShell caption="Most recently updated work tickets">
+                  <thead>
+                    <tr>
+                      <Th className="w-[9.5rem]">Ticket</Th>
+                      <Th>Project</Th>
+                      <Th>Status</Th>
+                      <Th align="right">Documented</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentTickets.map((ticket) => {
+                      const project = projectById.get(ticket.project_id);
+                      return (
+                        <Tr key={ticket.id} interactive>
+                          <Td>
+                            <Link href={`/tickets/${ticket.id}`} className="group/ticket block rounded">
+                              <span className="whitespace-nowrap font-mono text-[13px] font-semibold text-brand-700 group-hover/ticket:underline">
+                                {ticket.ticket_number}
+                              </span>
+                              <span className="mt-0.5 block whitespace-nowrap text-[12px] text-subtle">
+                                {formatDate(ticket.occurred_at)}
+                              </span>
+                            </Link>
+                          </Td>
+                          <Td>
+                            <Link href={`/projects/${ticket.project_id}`} className="block rounded">
+                              <span className="block truncate text-[13.5px] font-medium text-ink">
+                                {project?.name ?? 'Project'}
+                              </span>
+                              <span className="mt-0.5 block line-clamp-1 text-[12px] text-subtle">
+                                {project?.project_number ??
+                                  project?.general_contractor ??
+                                  ticket.description}
+                              </span>
+                            </Link>
+                          </Td>
+                          <Td>
+                            <StatusBadge status={ticket.status} size="xs" />
+                          </Td>
+                          <Td align="right">
+                            <span className="whitespace-nowrap font-mono text-[13px] font-semibold text-ink">
+                              {formatCurrency(totalsByTicket.get(ticket.id) ?? 0)}
+                            </span>
+                          </Td>
+                        </Tr>
+                      );
+                    })}
+                  </tbody>
+                </TableShell>
+              </div>
+            </>
           )}
-        </div>
+        </Card>
 
-        {/* Right Column: Active Projects & Activity Feed */}
+        {/* Right rail */}
         <div className="space-y-6">
-          {/* Active Projects Quick Access */}
-          <div className="card p-5">
-            <SectionHeading
-              title="Active Projects"
-              action={
-                <Link
-                  href="/projects"
-                  className="text-xs font-bold text-blue-600 hover:underline"
-                >
-                  All ({activeProjects.length})
+          {totalTickets > 0 && (
+            <Card flush>
+              <div className="flex items-baseline justify-between gap-3 px-5 py-4">
+                <div>
+                  <h2 className="h3">Ticket pipeline</h2>
+                  <p className="mt-0.5 text-[13px] text-muted">
+                    {pluralize(totalTickets, 'record')} tracked
+                  </p>
+                </div>
+                <Link href="/tickets" className="link text-[13px]">
+                  View
                 </Link>
-              }
-            />
-            {!activeProjects.length ? (
-              <p className="py-2 text-xs text-slate-500">No active projects found.</p>
-            ) : (
-              <div className="space-y-2.5">
-                {activeProjects.slice(0, 4).map((project) => (
-                  <Link
-                    key={project.id}
-                    href={`/projects/${project.id}`}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 p-3 transition hover:border-slate-300 hover:bg-white"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-bold text-slate-900">{project.name}</p>
-                      <p className="truncate text-[11px] text-slate-500">
-                        {project.general_contractor || project.site_address || 'Jobsite'}
-                      </p>
-                    </div>
-                    <ArrowRight size={14} className="shrink-0 text-slate-400" />
-                  </Link>
-                ))}
               </div>
-            )}
-          </div>
 
-          {/* Recent Activity Feed */}
-          <div className="card p-5">
-            <SectionHeading title="Recent Workspace Activity" />
-            {!recentActivityRes.data?.length ? (
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-center text-xs text-slate-500">
-                Activity will be tracked here as tickets, projects, and evidence are recorded.
+              <div className="px-5">
+                <div className="flex h-2 w-full overflow-hidden rounded-full bg-surface-3" aria-hidden="true">
+                  {statusOrder.map((status) =>
+                    counts[status.value] ? (
+                      <span
+                        key={status.value}
+                        className={statusDotClass(status.value)}
+                        style={{ width: `${(counts[status.value] / totalTickets) * 100}%` }}
+                      />
+                    ) : null
+                  )}
+                </div>
               </div>
+
+              <ul className="mt-4 divide-y divide-line border-t border-line">
+                {statusOrder.map((status) => (
+                  <li key={status.value}>
+                    <Link
+                      href={`/tickets?status=${status.value}`}
+                      className="flex items-center justify-between gap-3 px-5 py-2.5 transition-colors duration-150 hover:bg-surface-2"
+                    >
+                      <span className="flex items-center gap-2.5 text-[13px] text-body">
+                        <span
+                          aria-hidden="true"
+                          className={`h-2 w-2 rounded-full ${statusDotClass(status.value)}`}
+                        />
+                        {status.label}
+                      </span>
+                      <span className="text-[13px] font-semibold text-ink tabular-nums">
+                        {counts[status.value] ?? 0}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          <Card flush>
+            <div className="flex items-center justify-between gap-3 px-5 py-4">
+              <h2 className="h3">Active projects</h2>
+              <Link href="/projects" className="link text-[13px]">
+                All ({activeProjects.length})
+              </Link>
+            </div>
+            {activeProjects.length === 0 ? (
+              <p className="border-t border-line px-5 py-5 text-[13px] text-muted">
+                No active projects. Add one to start documenting work.
+              </p>
             ) : (
-              <ul className="space-y-3.5">
-                {recentActivityRes.data.map((event) => (
-                  <li key={event.id} className="flex gap-3 text-xs">
-                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-600" />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-800 leading-snug">{event.description}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-400">
-                        {formatDate(event.created_at, {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                    </div>
+              <ul className="divide-y divide-line border-t border-line">
+                {activeProjects.slice(0, 4).map((project) => (
+                  <li key={project.id}>
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="flex items-center justify-between gap-3 px-5 py-3 transition-colors duration-150 hover:bg-surface-2"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13.5px] font-medium text-ink">
+                          {project.name}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[12px] text-subtle">
+                          {project.general_contractor ?? project.site_address ?? 'Jobsite'}
+                        </span>
+                      </span>
+                      <ArrowRight size={14} className="shrink-0 text-faint" aria-hidden="true" />
+                    </Link>
                   </li>
                 ))}
               </ul>
             )}
-          </div>
+          </Card>
 
-          {/* Legal / Entitlement Notice */}
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-100/70 p-4 text-[11px] leading-5 text-slate-500">
-            <p className="font-bold text-slate-700">Documentation & Tracking Disclaimer</p>
-            <p className="mt-1">
-              Documented values are calculated from field entries. Statuses like “Approved” are internal workflow labels and do not constitute customer signoff, verified change orders, or guaranteed payment.
-            </p>
-          </div>
+          <Card flush>
+            <h2 className="h3 px-5 py-4">Activity</h2>
+            {recentActivityRes.data?.length ? (
+              <ul className="divide-y divide-line border-t border-line">
+                {recentActivityRes.data.map((event) => (
+                  <li key={event.id} className="flex gap-3 px-5 py-3">
+                    <span className="mt-1.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-700">
+                      <TrendingUp size={12} aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] leading-5 text-body">{event.description}</span>
+                      <span className="mt-0.5 block text-[11px] text-subtle">
+                        {formatRelative(event.created_at)}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="border-t border-line px-5 py-5 text-[13px] text-muted">
+                Ticket, project and evidence activity will appear here as your team works.
+              </p>
+            )}
+          </Card>
         </div>
       </div>
+
+      <p className="rounded-xl border border-line bg-surface-2/70 px-4 py-3 text-[12px] leading-5 text-muted">
+        <strong className="font-semibold text-body">Tracking disclaimer:</strong> totals are
+        calculated from the entries your team records, and statuses such as “Approved” are internal
+        workflow labels. They are not customer sign-off, a verified change order, or a payment
+        guarantee.
+      </p>
     </div>
   );
 }

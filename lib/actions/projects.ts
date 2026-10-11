@@ -80,3 +80,47 @@ export async function archiveProjectAction(formData: FormData) {
     return;
   }
 }
+
+/**
+ * Archive/restore used by the confirmation dialog. Returns a result so the
+ * dialog can surface a real error instead of silently doing nothing.
+ */
+export async function setProjectArchivedAction(
+  projectId: string,
+  archived: boolean
+): Promise<{ error?: string }> {
+  const id = idSchema.safeParse(projectId);
+  if (!id.success) return { error: 'This project link is invalid.' };
+  try {
+    const { supabase, user, workspace } = await requireWorkspace();
+    const { data, error } = await supabase
+      .from('projects')
+      .update({ is_archived: archived })
+      .eq('id', id.data)
+      .eq('company_id', workspace.id)
+      .select('id, name')
+      .maybeSingle();
+    if (error || !data) {
+      console.error('Project archive failed:', error?.code);
+      return {
+        error: `The project could not be ${archived ? 'archived' : 'restored'}. Check your access and try again.`,
+      };
+    }
+    await supabase.from('activity_events').insert({
+      company_id: workspace.id,
+      actor_id: user.id,
+      event_type: archived ? 'project.archived' : 'project.restored',
+      entity_type: 'project',
+      entity_id: data.id,
+      description: `${archived ? 'Archived' : 'Restored'} project ${data.name}`,
+    });
+    revalidatePath('/projects');
+    revalidatePath(`/projects/${data.id}`);
+    revalidatePath('/dashboard');
+    return {};
+  } catch {
+    return {
+      error: `The project could not be ${archived ? 'archived' : 'restored'}. Please try again.`,
+    };
+  }
+}

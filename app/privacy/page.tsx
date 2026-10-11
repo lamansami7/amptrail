@@ -1,68 +1,73 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-import { Brand } from '@/components/brand';
+import { LegalSection, LegalShell } from '@/components/marketing/legal-shell';
 
-export const metadata: Metadata = { title: 'Privacy Policy' };
+export const metadata: Metadata = { title: 'Privacy' };
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-3xl">
-        <header className="flex items-center justify-between">
-          <Brand />
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition"
-          >
-            <ArrowLeft size={14} /> Back to site
-          </Link>
-        </header>
-
-        <article className="card mt-10 p-6 sm:p-10">
-          <p className="eyebrow">Data Protection & Confidentiality</p>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-            Privacy Policy
-          </h1>
-          <p className="mt-1 text-xs text-slate-400">
-            Last updated: October 11, 2026 · Field Operations Template
+    <LegalShell
+      eyebrow="Data protection"
+      title="Privacy"
+      updated="October 11, 2026"
+      aside={
+        <div className="rounded-xl border border-line bg-surface-2/70 p-5 text-[12.5px] leading-5 text-muted">
+          <p className="font-semibold text-body">Deployment template</p>
+          <p className="mt-1.5">
+            Review and adapt this page with your own legal counsel before relying on it. It describes
+            how this build of AmpTrail handles data; it is not legal advice.
           </p>
+          <p className="mt-3">
+            Questions?{' '}
+            <Link href="/contact" className="link">
+              Contact us
+            </Link>
+            .
+          </p>
+        </div>
+      }
+    >
+      <LegalSection heading="1. Data storage and ownership">
+        <p>
+          When you create an account, AmpTrail stores your profile, company details, projects, work
+          tickets and uploaded jobsite photographs in the Supabase project connected to your
+          deployment. You keep ownership of the content and business records your team uploads.
+        </p>
+      </LegalSection>
 
-          <div className="mt-8 space-y-6 text-xs sm:text-sm leading-relaxed text-slate-600">
-            <section>
-              <h2 className="text-sm font-bold text-slate-900">1. Data Storage & Ownership</h2>
-              <p className="mt-1.5">
-                When you create an account, AmpTrail securely stores your profile, company details, commercial projects, work tickets, and uploaded jobsite photographs. You maintain exclusive proprietary ownership of all uploaded content and business records.
-              </p>
-            </section>
+      <LegalSection heading="2. Private evidence handling">
+        <p>
+          Jobsite photographs are stored in a private Supabase Storage bucket. Access requires
+          short-lived signed URLs issued to authenticated members of your company; links expire after
+          one hour. Evidence is never exposed through public URLs or search engines.
+        </p>
+      </LegalSection>
 
-            <section>
-              <h2 className="text-sm font-bold text-slate-900">2. Private Evidence Handling</h2>
-              <p className="mt-1.5">
-                Jobsite photographs are stored in private Supabase Storage buckets. Access to image files requires cryptographic signed URLs that expire after 1 hour. Photos are never exposed to public search engines or unauthenticated third parties.
-              </p>
-            </section>
+      <LegalSection heading="3. Workspace data isolation">
+        <p>
+          Every application table has PostgreSQL row-level security enabled. Only authenticated
+          members of your company can read its projects, tickets, line items and evidence records,
+          and only the creator of a ticket can edit or delete it.
+        </p>
+      </LegalSection>
 
-            <section>
-              <h2 className="text-sm font-bold text-slate-900">3. Workspace Data Isolation</h2>
-              <p className="mt-1.5">
-                Every database table is protected by PostgreSQL Row-Level Security (RLS) policies. Only authenticated members of your company can view your projects, tickets, or evidence files.
-              </p>
-            </section>
+      <LegalSection heading="4. Account and session data">
+        <p>
+          Authentication is handled by Supabase Auth with email and password. AmpTrail stores a
+          session cookie in your browser to keep you signed in and to authorise requests; signing out
+          clears it.
+        </p>
+      </LegalSection>
 
-            <section>
-              <h2 className="text-sm font-bold text-slate-900">4. Contact Information</h2>
-              <p className="mt-1.5">
-                For questions about data privacy, account deletion, or security audits, please review our{' '}
-                <Link href="/contact" className="font-semibold text-blue-600 hover:underline">
-                  Contact Page
-                </Link>
-                .
-              </p>
-            </section>
-          </div>
-        </article>
-      </div>
-    </main>
+      <LegalSection heading="5. Contact">
+        <p>
+          For questions about data privacy, account deletion or security reviews, use the{' '}
+          <Link href="/contact" className="link">
+            contact page
+          </Link>
+          .
+        </p>
+      </LegalSection>
+    </LegalShell>
   );
 }

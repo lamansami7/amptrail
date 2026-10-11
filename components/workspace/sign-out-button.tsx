@@ -1,46 +1,76 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, LoaderCircle } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-export function SignOutButton({ compact = false }: { compact?: boolean }) {
+/** Shared sign-out behaviour so the sidebar, drawer and settings agree. */
+export function useSignOut() {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
 
-  async function signOut() {
+  const signOut = useCallback(async () => {
     setPending(true);
     setError('');
     try {
       const { error: signOutError } = await createClient().auth.signOut();
       if (signOutError) {
-        setError('Sign out failed. Check connection.');
+        setError('Sign out failed. Check your connection and try again.');
         setPending(false);
         return;
       }
       router.replace('/');
       router.refresh();
     } catch {
-      setError('Sign out failed. Check connection.');
+      setError('Sign out failed. Check your connection and try again.');
       setPending(false);
     }
-  }
+  }, [router]);
+
+  return { signOut, pending, error };
+}
+
+export function SignOutButton({
+  variant = 'secondary',
+  size = 'sm',
+  className,
+  label = 'Sign out',
+  compact = false,
+}: {
+  variant?: 'secondary' | 'ghost' | 'dangerSoft' | 'primary';
+  size?: 'sm' | 'md';
+  className?: string;
+  label?: string;
+  /** Icon-only presentation for tight toolbars. */
+  compact?: boolean;
+}) {
+  const { signOut, pending, error } = useSignOut();
 
   return (
-    <div>
-      <button
+    <div className={className}>
+      <Button
         type="button"
+        variant={variant}
+        size={size}
+        iconOnly={compact}
         onClick={signOut}
-        disabled={pending}
-        className="flex min-h-8 w-full items-center gap-2 rounded-lg px-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition disabled:opacity-50 cursor-pointer"
-        aria-label="Sign out"
+        loading={pending}
+        aria-label={compact ? label : undefined}
+        title={compact ? label : undefined}
+        className={compact ? className : cn('w-full sm:w-auto', className)}
       >
-        {pending ? <LoaderCircle size={14} className="animate-spin" /> : <LogOut size={14} />}
-        {!compact && <span>{pending ? 'Signing out…' : 'Sign out'}</span>}
-      </button>
-      {error && <p className="px-2 pt-1 text-[10px] text-rose-600" role="alert">{error}</p>}
+        {!pending && <LogOut size={15} aria-hidden="true" />}
+        {!compact && (pending ? 'Signing out…' : label)}
+      </Button>
+      {error && (
+        <p role="alert" className="mt-2 text-xs font-medium text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
