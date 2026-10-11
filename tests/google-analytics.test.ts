@@ -1,11 +1,12 @@
 import { runInNewContext } from 'node:vm';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET, POST } from '@/app/api/analytics/g/collect/route';
 import {
   ANALYTICS_ORIGIN,
   createPageViewTracker,
   createSignUpTracker,
   filterAnalyticsHit,
+  GA_CONSENT_EVENT,
   GA_INITIALIZATION_SCRIPT,
   GA_MEASUREMENT_ID,
   GA_READY_EVENT,
@@ -46,8 +47,14 @@ function hit(overrides: Record<string, string> = {}) {
   });
 }
 
+beforeEach(() => {
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('Google tag initialization', () => {
@@ -58,7 +65,9 @@ describe('Google tag initialization', () => {
       dataLayer,
     });
     const ready = vi.fn();
+    const consentChanged = vi.fn();
     window.addEventListener(GA_READY_EVENT, ready);
+    window.addEventListener(GA_CONSENT_EVENT, consentChanged);
     const context = { window, Event };
 
     runInNewContext(GA_INITIALIZATION_SCRIPT, context);
@@ -79,6 +88,17 @@ describe('Google tag initialization', () => {
       transport_url: 'https://preview.example.test/api/analytics',
     }]);
     expect(ready).toHaveBeenCalledTimes(1);
+
+    const initializedWindow = window as typeof window & {
+      gtag: (...args: unknown[]) => void;
+    };
+    initializedWindow.gtag('consent', 'update', { analytics_storage: 'granted' });
+    expect(consentChanged).toHaveBeenCalledTimes(1);
+    expect(Array.from(dataLayer[2])).toEqual([
+      'consent',
+      'update',
+      { analytics_storage: 'granted' },
+    ]);
   });
 });
 
@@ -131,6 +151,7 @@ describe('manual page views', () => {
       page_location: `${ANALYTICS_ORIGIN}/`,
       page_title: 'AmpTrail · Home',
       page_referrer: '',
+      user_data: {},
       amptrail_page_view: '1',
     }]);
     expect(gtag.mock.calls[1][2].page_referrer).toBe(`${ANALYTICS_ORIGIN}/`);
@@ -158,6 +179,21 @@ describe('manual page views', () => {
     track('/', gtag);
     expect(gtag).toHaveBeenCalledTimes(2);
     expect(gtag.mock.calls[1][2].page_referrer).toBe('');
+  });
+
+  it('tracks the current page once when analytics consent changes from denied to granted', () => {
+    const gtag = vi.fn();
+    const consentWindow: Record<string, unknown> = { __amptrailAnalyticsConsent: false };
+    vi.stubGlobal('window', consentWindow);
+    const track = createPageViewTracker();
+
+    track('/', gtag);
+    expect(gtag).not.toHaveBeenCalled();
+
+    consentWindow.__amptrailAnalyticsConsent = true;
+    track('/', gtag);
+    track('/', gtag);
+    expect(gtag).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -227,6 +263,7 @@ describe('signup conversion tracking (sign_up)', () => {
       page_location: `${ANALYTICS_ORIGIN}/signup`,
       page_title: 'AmpTrail · Sign up',
       page_referrer: '',
+      user_data: {},
       amptrail_sign_up: '1',
     });
     expect(storage.getItem(SIGN_UP_STORAGE_KEY)).toBe('1');
@@ -370,6 +407,9 @@ describe('collection privacy boundary', () => {
       uid: 'private-account-id',
       uip: '192.0.2.1',
       'up.email': 'private@example.test',
+      em: 'hashed-private-email',
+      ec_mode: 'a',
+      'ep.user_data.email': 'private@example.test',
       'ep.project_name': 'private-project',
       'ep.link_url': 'https://storage.example.test/private-photo?token=private',
       'ep.form_destination': '/tickets/private-work-ticket',
@@ -497,33 +537,48 @@ describe('collection privacy boundary', () => {
 });
 
 describe('first-party GA4 collection endpoint', () => {
-  it('forwards a sanitized GET hit as a form-encoded POST body without browser cookies, headers, or IP addresses', async () => {
+  const responseBody = (overrides: Record<string, unknown> = {}) => ({
+    ok: true,
+    accepted: 1,
+    forwarded: 1,
+    failed: 0,
+    upstream_statuses: [204],
+    ...overrides,
+  });
+
+  function forwardedParams(fetchMock: ReturnType<typeof vi.fn>, call = 0) {
+    const [rawUrl, options] = fetchMock.mock.calls[call];
+    const url = new URL(String(rawUrl));
+    expect(`${url.origin}${url.pathname}`).toBe('https://www.google-analytics.com/g/collect');
+    expect(options).toMatchObject({
+      method: 'GET',
+      credentials: 'omit',
+      redirect: 'error',
+      cache: 'no-store',
+    });
+    expect(options.body).toBeUndefined();
+    return url.searchParams;
+  }
+
+  it('forwards one sanitized hit in the GA4 web-collection query, never in a form POST body', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetch);
     const response = await GET(new Request(`https://preview.example.test/api/analytics/g/collect?${hit()}`, {
       headers: { cookie: 'private-session', 'x-forwarded-for': '192.0.2.1', 'user-agent': 'private-browser' },
     }));
 
-    // Regression: this stack crashes serializing null/empty-body Responses from
-    // a route handler (opaque 500s on Vercel), which silently killed all hits.
-    // Lock in the safe response shape: small non-empty JSON 200 (valid on Node,
-    // serializes cleanly on Vercel). The Google tag never reads this response.
+    // Keep a non-empty response because this deployed Next/Vercel stack has
+    // previously failed while serializing empty route-handler responses.
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('application/json');
-    expect(await response.json()).toEqual({ ok: true });
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toEqual(responseBody());
     expect(fetch).toHaveBeenCalledTimes(1);
-    const [url, options] = fetch.mock.calls[0];
-    // Fixed destination with no parameters in the URL: GA4 server-to-server
-    // ingestion requires the hit in the form-encoded POST body.
-    expect(url).toBe('https://www.google-analytics.com/g/collect');
-    expect(options).toMatchObject({
-      method: 'POST',
-      credentials: 'omit',
-      redirect: 'error',
-      cache: 'no-store',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: filterAnalyticsHit(hit())!.toString(),
-    });
+
+    // Protocol-v2 shared fields and a single event belong in /g/collect's URL.
+    // The old all-fields-in-a-form-body request received 204 but was not a
+    // valid gtag.js wire request and produced zero events in GA.
+    expect(forwardedParams(fetch).toString()).toBe(filterAnalyticsHit(hit())!.toString());
     expect(JSON.stringify(fetch.mock.calls)).not.toContain('private');
   });
 
@@ -567,6 +622,7 @@ describe('first-party GA4 collection endpoint', () => {
       '_nsi=1',
       '_ss=1',
       '_ee=1',
+      '_dbg=1',
       'dt=AmpTrail+%C2%B7+Home',
       `dl=${encodeURIComponent(`${ANALYTICS_ORIGIN}/`)}`,
       'dr=',
@@ -577,22 +633,24 @@ describe('first-party GA4 collection endpoint', () => {
     const response = await GET(new Request(`https://preview.example.test/api/analytics/g/collect?${wireQuery}`));
 
     expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(responseBody());
     expect(fetch).toHaveBeenCalledTimes(1);
-    const [url, options] = fetch.mock.calls[0];
-    expect(url).toBe('https://www.google-analytics.com/g/collect');
-    const forwarded = new URLSearchParams(options.body);
+    const forwarded = forwardedParams(fetch);
     expect(forwarded.toString()).toBe(filterAnalyticsHit(new URLSearchParams(wireQuery))!.toString());
     // Reconstructed, never trusted from the request:
     expect(forwarded.get('dt')).toBe('AmpTrail · Home');
     expect(forwarded.get('dl')).toBe(`${ANALYTICS_ORIGIN}/`);
-    // Session metadata preserved so GA derives session_start/first_visit:
+    // Session metadata and non-user protocol markers needed by GA are preserved:
     expect(forwarded.get('sid')).toBe('1774633612');
     expect(forwarded.get('sct')).toBe('1');
     expect(forwarded.get('_ss')).toBe('1');
     expect(forwarded.get('_fv')).toBe('1');
+    expect(forwarded.get('_nsi')).toBe('1');
+    expect(forwarded.get('gtm')).toBe('45je63p1h1v9104254764za200zd9104254764');
+    expect(forwarded.get('_dbg')).toBe('1');
     expect(forwarded.get('gcs')).toBe('G1-1');
-    // Everything outside the allowlist must not reach Google:
-    for (const blocked of ['gtm', '_gaz', '_eu', '_nsi', '_ee', 'tag_exp', 'ul', 'sr', 'uaa', 'uab', 'uafvl', 'uamb', 'uam', 'uap', 'uapv', 'uaw', 'are', 'frm', 'pscdl', 'ep.amptrail_page_view']) {
+    // Everything private or outside the allowlist must not reach Google:
+    for (const blocked of ['_gaz', '_eu', '_ee', 'tag_exp', 'ul', 'sr', 'uaa', 'uab', 'uafvl', 'uamb', 'uam', 'uap', 'uapv', 'uaw', 'are', 'frm', 'pscdl', 'ep.amptrail_page_view']) {
       expect(forwarded.has(blocked), `must not forward ${blocked}`).toBe(false);
     }
     // Non-personalized-ads signal is forced on, never trusted from the request:
@@ -600,12 +658,13 @@ describe('first-party GA4 collection endpoint', () => {
     expect(JSON.stringify(fetch.mock.calls)).not.toContain('HeadlessChrome');
   });
 
-  it('accepts the gtag.js hybrid POST (shared params in query, event params in form body) used with transport_url', async () => {
+  it('accepts the gtag.js hybrid POST used with transport_url and emits a valid single-event GET', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetch);
     const shared = [
       'v=2',
       `tid=${GA_MEASUREMENT_ID}`,
+      'gtm=45je63p1h1v9104254764za200zd9104254764',
       'gcs=G1-1',
       'gcd=13l3t3l3l5l1',
       'dma=0',
@@ -626,10 +685,9 @@ describe('first-party GA4 collection endpoint', () => {
     }));
 
     expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(responseBody());
     expect(fetch).toHaveBeenCalledTimes(1);
-    const [url, options] = fetch.mock.calls[0];
-    expect(url).toBe('https://www.google-analytics.com/g/collect');
-    const forwarded = new URLSearchParams(options.body);
+    const forwarded = forwardedParams(fetch);
     expect(forwarded.get('en')).toBe('page_view');
     expect(forwarded.get('cid')).toBe('1943252256.1774633612');
     expect(forwarded.get('dl')).toBe(`${ANALYTICS_ORIGIN}/`);
@@ -647,12 +705,13 @@ describe('first-party GA4 collection endpoint', () => {
       body:
         'en=sign_up&dt=AmpTrail+%C2%B7+Sign+up&dl=' +
         encodeURIComponent(`${ANALYTICS_ORIGIN}/signup`) +
-        '&dr=&ep.page_path=%2Fsignup&ep.amptrail_sign_up=1&ep.method=email&_et=0',
+        '&dr=&ep.page_path=%2Fsignup&ep.amptrail_sign_up=1&ep.method=email&_et=1',
     }));
 
     expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(responseBody());
     expect(fetch).toHaveBeenCalledTimes(1);
-    const forwarded = new URLSearchParams(fetch.mock.calls[0][1].body);
+    const forwarded = forwardedParams(fetch);
     expect(forwarded.get('en')).toBe('sign_up');
     expect(forwarded.get('ep.method')).toBe('email');
     expect(forwarded.get('dl')).toBe(`${ANALYTICS_ORIGIN}/signup`);
@@ -660,7 +719,7 @@ describe('first-party GA4 collection endpoint', () => {
     expect(forwarded.has('ep.amptrail_sign_up')).toBe(false);
   });
 
-  it('accepts newline-batched POST events including sanitized sign_up while dropping automatic page views and form data', async () => {
+  it('accepts newline-batched POST events while dropping automatic events and all form/user data', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetch);
     const query = hit({ dl: `${ANALYTICS_ORIGIN}/signup` });
@@ -672,49 +731,78 @@ describe('first-party GA4 collection endpoint', () => {
         'en=page_view',
         'en=sign_up&ep.email=private@example.test',
         'en=form_submit&ep.form_name=private-customer',
-        'en=page_view&ep.amptrail_page_view=1&ep.customer=private',
-        'en=sign_up&ep.amptrail_sign_up=1&ep.email=private@example.test&ep.company_name=Private+Electric',
+        'en=page_view&ep.amptrail_page_view=1&ep.customer=private&em=hashed-private-email',
+        'en=sign_up&ep.amptrail_sign_up=1&ep.email=private@example.test&ep.password=private-password&ep.company_name=Private+Electric',
       ].join('\n'),
     }));
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('application/json');
-    expect(await response.json()).toEqual({ ok: true });
+    expect(await response.json()).toEqual(responseBody({ accepted: 2, forwarded: 2 }));
     expect(fetch).toHaveBeenCalledTimes(2);
-    const bodies = fetch.mock.calls.map((call) => String(call[1]?.body ?? ''));
-    expect(bodies.every((body) => body.startsWith('v=2&tid='))).toBe(true);
-    expect(bodies.some((body) => body.includes('en=page_view'))).toBe(true);
-    expect(bodies.some((body) => body.includes('en=sign_up') && body.includes('ep.method=email'))).toBe(true);
-    expect(fetch.mock.calls.every((call) => String(call[0]) === 'https://www.google-analytics.com/g/collect')).toBe(true);
+    const forwarded = fetch.mock.calls.map((_, index) => forwardedParams(fetch, index));
+    expect(forwarded.some((params) => params.get('en') === 'page_view')).toBe(true);
+    expect(forwarded.some((params) => params.get('en') === 'sign_up' && params.get('ep.method') === 'email')).toBe(true);
     expect(JSON.stringify(fetch.mock.calls)).not.toContain('private');
     expect(JSON.stringify(fetch.mock.calls)).not.toContain('Private');
+    expect(forwarded.every((params) => !params.has('em'))).toBe(true);
   });
 
-  it('drops automatic GET events without making any downstream request', async () => {
+  it('reports allowlist rejections without making a downstream request', async () => {
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
     const response = await GET(new Request(`https://preview.example.test/api/analytics/g/collect?${hit({ 'ep.amptrail_page_view': '' })}`));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    expect(await response.json()).toEqual(responseBody({
+      accepted: 0,
+      forwarded: 0,
+      upstream_statuses: [],
+    }));
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('rejects oversized payloads', async () => {
+  it('rejects oversized URL and body payloads', async () => {
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
-    const response = await POST(new Request('https://preview.example.test/api/analytics/g/collect', {
+    const bodyResponse = await POST(new Request('https://preview.example.test/api/analytics/g/collect', {
       method: 'POST',
       body: 'x'.repeat(64 * 1024 + 1),
     }));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    const urlResponse = await GET(new Request(
+      `https://preview.example.test/api/analytics/g/collect?value=${'x'.repeat(64 * 1024)}`
+    ));
+    const expected = responseBody({ accepted: 0, forwarded: 0, upstream_statuses: [] });
+    expect(await bodyResponse.json()).toEqual(expected);
+    expect(await urlResponse.json()).toEqual(expected);
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('isolates Google network failures from the application', async () => {
+  it('surfaces a Google non-2xx without exposing or treating it as successful forwarding', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('rejected', { status: 500 }));
+    vi.stubGlobal('fetch', fetch);
+    const response = await GET(new Request(`https://preview.example.test/api/analytics/g/collect?${hit()}`));
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual(responseBody({
+      ok: false,
+      forwarded: 0,
+      failed: 1,
+      upstream_statuses: [500],
+    }));
+    expect(console.error).toHaveBeenCalledWith(
+      '[amptrail-ga4-relay] upstream failure',
+      expect.objectContaining({ accepted: 1, forwarded: 0, failed: 1 })
+    );
+  });
+
+  it('isolates Google network failures from application workflows but reports relay failure honestly', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('unavailable')));
     const response = await POST(new Request(`https://preview.example.test/api/analytics/g/collect?${hit()}`, { method: 'POST' }));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual(responseBody({
+      ok: false,
+      forwarded: 0,
+      failed: 1,
+      upstream_statuses: [],
+    }));
   });
 });
