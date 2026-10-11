@@ -234,7 +234,7 @@ export default function HomePage() {
                   <Calculator size={11} aria-hidden="true" />
                   Labor · live
                 </p>
-                <p className="mt-1.5 font-mono text-[15px] font-semibold text-ink">$4,812.00</p>
+                <p className="mt-1.5 font-mono text-[15px] font-semibold text-ink">$4,450.00</p>
                 <p className="mt-0.5 text-[11px] text-muted">Recalculated per line</p>
               </div>
             </div>

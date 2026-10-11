@@ -6,6 +6,7 @@ import { SetupNotice } from '@/components/setup-notice';
 import { Alert } from '@/components/ui/alert';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
+import { SUPPORT_EMAIL, supportMailto } from '@/lib/support';
 
 export const metadata: Metadata = { title: 'Log in' };
 
@@ -34,10 +35,24 @@ export default async function LoginPage({
         <SetupNotice compact />
       ) : (
         <div className="space-y-5">
-          {params.error === 'auth_callback_failed' && (
-            <Alert tone="danger" role="alert" title="That link could not be verified">
-              The sign-in link has expired or was already used. Sign in below, or request a new
-              password reset link.
+          {(params.error === 'auth_callback_failed' ||
+            params.error === 'link_expired' ||
+            params.error === 'link_denied') && (
+            <Alert tone="danger" role="alert" title={
+              params.error === 'link_expired'
+                ? 'That link has expired'
+                : params.error === 'link_denied'
+                  ? 'That link could not be accepted'
+                  : 'That link could not be verified'
+            }>
+              {params.error === 'link_expired'
+                ? 'Email links are short-lived and work once. Sign in below, or request a fresh password reset link.'
+                : 'The sign-in or recovery link has expired or was already used. Sign in below, or request a new password reset link.'}{' '}
+              If this keeps happening, email{' '}
+              <a href={supportMailto({ subject: 'Sign-in link problems' })} className="link">
+                {SUPPORT_EMAIL}
+              </a>
+              .
             </Alert>
           )}
           {params.error === 'supabase_not_configured' && (

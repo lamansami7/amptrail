@@ -334,7 +334,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:items-start">
         {/* Recent tickets */}
         <Card flush>
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">

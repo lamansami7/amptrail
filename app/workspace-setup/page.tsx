@@ -8,6 +8,7 @@ import { ButtonLink } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { SignOutButton } from '@/components/workspace/sign-out-button';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
+import { SUPPORT_EMAIL, supportMailto } from '@/lib/support';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = { title: 'Workspace setup' };
@@ -84,9 +85,12 @@ export default async function WorkspaceSetupPage() {
                 <RefreshCw size={15} aria-hidden="true" />
                 Check again
               </ButtonLink>
-              <ButtonLink href="/contact" variant="secondary">
+              <ButtonLink
+                href={supportMailto({ subject: 'Workspace membership missing' })}
+                variant="secondary"
+              >
                 <LifeBuoy size={15} aria-hidden="true" />
-                Get help
+                Email {SUPPORT_EMAIL}
               </ButtonLink>
               <Link href="/terms" className="link ml-auto text-[13px]">
                 Review terms

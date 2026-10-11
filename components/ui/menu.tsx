@@ -20,6 +20,7 @@ export type MenuItem = {
  */
 export function Menu({
   label,
+  triggerLabel,
   trigger,
   triggerClassName,
   items,
@@ -27,7 +28,14 @@ export function Menu({
   side = 'bottom',
   menuClassName,
 }: {
+  /** Names the menu panel itself. */
   label: string;
+  /**
+   * Optional explicit name for the trigger button. Omit it when the trigger
+   * already shows its own visible label (WCAG 2.5.3 label-in-name); provide it
+   * for icon-only triggers.
+   */
+  triggerLabel?: string;
   trigger: ReactNode;
   triggerClassName?: string;
   items: MenuItem[];
@@ -105,7 +113,7 @@ export function Menu({
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={label}
+        aria-label={triggerLabel}
         onClick={() => setOpen((value) => !value)}
         className={cn('cursor-pointer', triggerClassName)}
       >

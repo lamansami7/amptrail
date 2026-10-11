@@ -161,13 +161,11 @@ export default async function TicketDetailPage({ params }: Props) {
           3600
         )
     : { data: [], error: null };
-  const signedUrlByPath = new Map(
-    (signedEvidence.data ?? []).map((item) => [item.path ?? '', item.signedUrl])
-  );
-
-  const evidenceWithUrls: EvidenceView[] = evidenceRows.map((row) => ({
+  // createSignedUrls preserves request order; map by index so previews work
+  // regardless of whether the response echoes each path.
+  const evidenceWithUrls: EvidenceView[] = evidenceRows.map((row, index) => ({
     ...row,
-    signedUrl: signedUrlByPath.get(row.storage_path) ?? null,
+    signedUrl: signedEvidence.data?.[index]?.signedUrl ?? null,
     canDelete: row.uploaded_by === user.id,
   }));
 

@@ -24,6 +24,8 @@ const inter = localFont({
   fallback: ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://getamptrail.vercel.app';
+
 export const metadata: Metadata = {
   title: {
     default: 'AmpTrail — Extra work, fully documented',
@@ -32,7 +34,48 @@ export const metadata: Metadata = {
   description:
     'AmpTrail is the field record for electrical subcontractors: capture extra work, crew labor, materials, and jobsite photos, then hand over a professional T&M document.',
   applicationName: 'AmpTrail',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://getamptrail.vercel.app'),
+  metadataBase: new URL(siteUrl),
+  keywords: [
+    'electrical subcontractor',
+    'time and material',
+    'T&M documentation',
+    'extra work tracking',
+    'work tickets',
+    'jobsite evidence',
+    'construction documentation',
+  ],
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    other: [{ url: '/icon-512.png', sizes: '512x512', type: 'image/png' }],
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'AmpTrail',
+    title: 'AmpTrail — Document the work. Protect the paper trail.',
+    description:
+      'Capture extra work, track labor and materials, and organize jobsite evidence — all in one workspace built for electrical subcontractors.',
+    url: siteUrl,
+    images: [
+      {
+        url: '/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'AmpTrail — document the work, protect the paper trail.',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AmpTrail — Document the work. Protect the paper trail.',
+    description:
+      'Capture extra work, track labor and materials, and organize jobsite evidence — all in one workspace built for electrical subcontractors.',
+    images: ['/og.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export const viewport: Viewport = {

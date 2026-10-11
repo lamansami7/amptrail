@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { RefreshCw, LifeBuoy } from 'lucide-react';
 import { Button, ButtonLink } from '@/components/ui/button';
+import { supportMailto } from '@/lib/support';
 
 /**
  * Error boundary for the workspace. It never shows a raw stack trace or a
@@ -37,9 +38,9 @@ export default function WorkspaceError({
         <ButtonLink href="/dashboard" variant="secondary">
           Back to overview
         </ButtonLink>
-        <ButtonLink href="/contact" variant="ghost">
+        <ButtonLink href={supportMailto({ subject: 'App error — need a hand' })} variant="ghost">
           <LifeBuoy size={15} aria-hidden="true" />
-          Support
+          Email support
         </ButtonLink>
       </div>
       {error.digest && (

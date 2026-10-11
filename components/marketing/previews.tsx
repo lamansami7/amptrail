@@ -56,7 +56,7 @@ function Chrome({ title, meta }: { title: string; meta?: string }) {
 export function TicketDocPreview({ compact = false }: { compact?: boolean }) {
   return (
     <Frame
-      label="AmpTrail work ticket record showing project details, labor and material line items, and a documented total of 11,627 dollars."
+      label="AmpTrail work ticket record showing project details, labor and material line items, and a documented total of 11,248 dollars."
       className="w-full"
     >
       <Chrome title="AmpTrail · Work ticket" meta="AT-26-0142" />
@@ -78,11 +78,11 @@ export function TicketDocPreview({ compact = false }: { compact?: boolean }) {
         <dl className="mt-4 grid grid-cols-3 gap-2 rounded-lg border border-line bg-surface-2/60 p-2.5 text-[11px]">
           <div>
             <dt className="text-subtle">Labor</dt>
-            <dd className="mt-0.5 font-mono font-semibold text-ink">$4,812.00</dd>
+            <dd className="mt-0.5 font-mono font-semibold text-ink">$4,450.00</dd>
           </div>
           <div>
             <dt className="text-subtle">Materials</dt>
-            <dd className="mt-0.5 font-mono font-semibold text-ink">$6,318.40</dd>
+            <dd className="mt-0.5 font-mono font-semibold text-ink">$6,302.00</dd>
           </div>
           <div>
             <dt className="text-subtle">Equipment</dt>
@@ -103,7 +103,7 @@ export function TicketDocPreview({ compact = false }: { compact?: boolean }) {
               ['Journeyman electrician', '38 hrs', '$3,306.00'],
               ['Apprentice', '22 hrs', '$1,144.00'],
               ['3/4" EMT conduit + fittings', '64 ea', '$1,472.00'],
-              ['#12 THHN copper wire', '4,200 ft', '$4,846.40'],
+              ['#12 THHN copper wire', '4,200 ft', '$4,830.00'],
             ].map((row) => (
               <tr key={row[0]} className="border-t border-line">
                 <td className="py-1.5 pr-2 text-ink">{row[0]}</td>
@@ -119,7 +119,7 @@ export function TicketDocPreview({ compact = false }: { compact?: boolean }) {
             <span className="text-[11px] uppercase tracking-[0.08em] text-slate-300">
               Documented total
             </span>
-            <span className="font-mono text-[15px] font-semibold tabular-nums">$11,627.00</span>
+            <span className="font-mono text-[15px] font-semibold tabular-nums">$11,248.60</span>
           </div>
         )}
       </div>
@@ -186,11 +186,11 @@ export function EditorPreview() {
           <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-subtle">
             Running total
           </p>
-          <p className="mt-1.5 font-mono text-[19px] font-semibold text-ink">$11,627.00</p>
+          <p className="mt-1.5 font-mono text-[19px] font-semibold text-ink">$11,248.60</p>
           <dl className="mt-3 space-y-1.5 border-t border-line pt-2.5 text-[11px]">
             {[
-              ['Labor', '$4,812.00'],
-              ['Materials', '$6,318.40'],
+              ['Labor', '$4,450.00'],
+              ['Materials', '$6,302.00'],
               ['Equipment', '$496.60'],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between gap-2">
@@ -308,7 +308,7 @@ export function PdfPreview() {
               {[
                 ['Journeyman electrician', '38 hrs', '$3,306.00'],
                 ['3/4" EMT conduit + fittings', '64 ea', '$1,472.00'],
-                ['#12 THHN copper wire', '4,200 ft', '$4,846.40'],
+                ['#12 THHN copper wire', '4,200 ft', '$4,830.00'],
               ].map((row) => (
                 <tr key={row[0]} className="border-b border-line">
                   <td className="py-1.5 pl-2 text-ink">{row[0]}</td>
@@ -325,11 +325,11 @@ export function PdfPreview() {
             <div className="w-40 text-[10.5px]">
               <div className="flex justify-between py-0.5">
                 <span className="text-subtle">Subtotal</span>
-                <span className="font-mono text-body">$9,624.40</span>
+                <span className="font-mono text-body">$9,608.00</span>
               </div>
               <div className="mt-1 flex items-center justify-between border-t border-ink pt-1">
                 <span className="font-semibold text-ink">Total</span>
-                <span className="font-mono text-[12px] font-semibold text-ink">$11,627.00</span>
+                <span className="font-mono text-[12px] font-semibold text-ink">$11,248.60</span>
               </div>
             </div>
           </div>
@@ -379,7 +379,7 @@ export function DashboardPreview() {
             <span className="font-semibold">Documented</span>
           </div>
           {[
-            ['AT-26-0142', 'Metro Medical Center', 'ready_for_review', '$11,627.00'],
+            ['AT-26-0142', 'Metro Medical Center', 'ready_for_review', '$11,248.60'],
             ['AT-26-0141', 'Harborview Tech Campus', 'approved', '$8,410.00'],
             ['AT-26-0139', 'Lakeside Distribution Hub', 'submitted', '$3,180.50'],
           ].map(([number, project, status, total]) => (

@@ -45,11 +45,11 @@ The application accepts either the legacy browser-safe anon key under `NEXT_PUBL
 Optional public settings:
 
 ```dotenv
-NEXT_PUBLIC_SUPPORT_EMAIL=support@your-domain.example
-NEXT_PUBLIC_SITE_URL=https://your-domain.example
+NEXT_PUBLIC_SUPPORT_EMAIL=amptrail.support@gmail.com
+NEXT_PUBLIC_SITE_URL=https://getamptrail.vercel.app
 ```
 
-`NEXT_PUBLIC_SUPPORT_EMAIL` enables the Contact page's mail link. `NEXT_PUBLIC_SITE_URL` sets the canonical metadata URL. Do not set either to an address/domain that is not controlled by the operator.
+`NEXT_PUBLIC_SUPPORT_EMAIL` overrides the support contact shown on the Contact page, in the footer, and in recovery guidance. The official AmpTrail support address, `amptrail.support@gmail.com`, is the default and is used everywhere unless this variable is set. `NEXT_PUBLIC_SITE_URL` sets the canonical metadata URL (Open Graph, sitemap, robots).
 
 Start the development server:
 
@@ -69,7 +69,7 @@ Open <http://localhost:3000>. If Supabase keys are absent, the public website re
    - `https://YOUR_VERCEL_DOMAIN/auth/callback`
    - `https://YOUR_CUSTOM_DOMAIN/auth/callback`
 5. In Supabase → Authentication → Providers, enable Email. Choose whether email confirmation is required. If enabled, configure reliable SMTP for production and test delivery; AmpTrail shows a confirmation message and exchanges the emailed PKCE code at `/auth/callback`.
-6. Password-reset messages redirect through `/auth/callback?next=/reset-password`. Confirm that the redirect URL above is allowed. The callback only accepts safe relative destinations.
+6. Password-reset messages redirect through `/auth/callback?next=/reset-password`. Confirm that the redirect URL above is allowed. The callback only accepts safe relative destinations. See [`docs/password-recovery.md`](docs/password-recovery.md) for the complete recovery flow, SMTP/production delivery requirements, and rate-limit behavior.
 7. Review the migration and RLS policies in your own project. The account trigger creates one company/workspace and owner membership on account creation. The starter UI selects the earliest workspace; a multi-workspace switcher and member-invitation flow are not included.
 8. Test uploads with a signed-in account. The bucket is private, limited to 10 MB JPG/PNG/WebP objects. Signed image URLs expire after one hour. Do not manually make the bucket public.
 
