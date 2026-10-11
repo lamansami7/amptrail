@@ -99,6 +99,18 @@ supabase/migrations/       PostgreSQL schema, RLS, and private-storage setup
 tests/                    Calculation and validation tests
 ```
 
+## Brand assets
+
+AmpTrail uses a custom A-and-lightning monogram with matching horizontal wordmarks for light and dark surfaces. The inline `Brand` component keeps the header, footer, authentication pages, and workspace shell visually consistent.
+
+- `public/brand/amptrail-horizontal.svg` / `amptrail-horizontal-dark.svg` — full horizontal vector wordmarks, with high-resolution PNG exports beside them.
+- `public/brand/amptrail-icon.svg` / `amptrail-icon-dark.svg` — standalone A-and-lightning vectors, with 512 px PNG exports beside them.
+- `public/brand/app-icon.svg` and `apple-icon.svg` — dark PWA icon and light Apple touch icon artwork.
+- `public/brand/og.svg` — editable Open Graph artwork; `public/og.png` is the 1200 × 630 social card.
+- `app/icon.svg`, `public/favicon.ico`, `public/apple-touch-icon.png`, and `app/manifest.ts` — browser, Apple, and installable PWA icon metadata/assets.
+
+The manifest includes 192 px and 512 px standard and maskable icons. Replacing the source SVG artwork and regenerating its PNG exports does not affect application routes or authentication.
+
 ## Checks
 
 ```bash

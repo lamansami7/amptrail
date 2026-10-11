@@ -72,9 +72,7 @@ export function AuthFrame({
           className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:52px_52px] [mask-image:radial-gradient(70%_60%_at_70%_20%,black,transparent)]"
         />
 
-        <p className="relative text-[12px] font-medium uppercase tracking-[0.1em] text-brand-300">
-          AmpTrail
-        </p>
+        <Brand href="/" size="lg" inverted className="relative w-fit" />
 
         <div className="relative max-w-md">
           <h2 className="text-[1.75rem] font-semibold leading-[1.15] tracking-[-0.025em] xl:text-[2rem]">

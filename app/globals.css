@@ -30,12 +30,12 @@
   --color-brand-ink: #1e3a8a;
 
   /* Neutrals — cool slate */
-  --color-ink: #0b1220;
-  --color-ink-soft: #1e293b;
-  --color-body: #334155;
-  --color-muted: #566476;
-  --color-subtle: #5f6d81;
-  --color-faint: #63707f;
+  --color-ink: #0d1b35;
+  --color-ink-soft: #1e2d49;
+  --color-body: #33445d;
+  --color-muted: #56657d;
+  --color-subtle: #5f6f87;
+  --color-faint: #64748b;
 
   /* Surfaces */
   --color-canvas: #f6f8fb;
@@ -60,10 +60,10 @@
   --color-info-line: #cbdcfe;
 
   /* Elevation — restrained, three usable levels */
-  --shadow-xs: 0 1px 2px 0 rgb(11 18 32 / 0.05);
-  --shadow-sm: 0 1px 3px 0 rgb(11 18 32 / 0.07), 0 1px 2px -1px rgb(11 18 32 / 0.05);
-  --shadow-md: 0 6px 16px -4px rgb(11 18 32 / 0.1), 0 2px 6px -2px rgb(11 18 32 / 0.05);
-  --shadow-lg: 0 16px 32px -12px rgb(11 18 32 / 0.16), 0 4px 12px -4px rgb(11 18 32 / 0.08);
+  --shadow-xs: 0 1px 2px 0 rgb(13 27 53 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(13 27 53 / 0.07), 0 1px 2px -1px rgb(13 27 53 / 0.05);
+  --shadow-md: 0 6px 16px -4px rgb(13 27 53 / 0.1), 0 2px 6px -2px rgb(13 27 53 / 0.05);
+  --shadow-lg: 0 16px 32px -12px rgb(13 27 53 / 0.16), 0 4px 12px -4px rgb(13 27 53 / 0.08);
   --shadow-inset: inset 0 1px 0 0 rgb(255 255 255 / 0.06);
 
   /* Radii */
@@ -215,7 +215,7 @@
   }
 
   .display {
-    font-size: clamp(2.125rem, 1.35rem + 3.1vw, 3.5rem);
+    font-size: clamp(2.125rem, 1.35rem + 2.45vw, 3rem);
     font-weight: 600;
     line-height: 1.06;
     letter-spacing: -0.032em;
