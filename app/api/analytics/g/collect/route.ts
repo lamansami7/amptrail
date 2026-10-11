@@ -4,6 +4,7 @@ const MAX_BODY_LENGTH = 64 * 1024;
 const MAX_BATCH_EVENTS = 20;
 
 async function collect(request: Request) {
+  try {
   const query = new URL(request.url).searchParams;
   if (Number(request.headers.get('content-length')) > MAX_BODY_LENGTH) {
     return new Response(null, { status: 204 });
@@ -41,6 +42,31 @@ async function collect(request: Request) {
   }));
 
   return new Response(null, { status: 204 });
+  } catch (error) {
+    // TEMPORARY DIAGNOSTIC (remove before final): surface the exact failure.
+    const details = {
+      handlerError: true,
+      node: process.version,
+      type: typeof error,
+      isErr: error instanceof Error,
+      name: error instanceof Error ? error.name : undefined,
+      message: error instanceof Error ? error.message : undefined,
+      text: error instanceof Error ? undefined : (() => {
+        try {
+          return JSON.stringify(error)?.slice(0, 400);
+        } catch {
+          return String(error);
+        }
+      })(),
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 8) : undefined,
+      url: typeof request?.url === 'string' ? request.url : null,
+      method: request?.method ?? null,
+    };
+    return new Response(JSON.stringify(details), {
+      status: 599,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 }
 
 export const GET = collect;
