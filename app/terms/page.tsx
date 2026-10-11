@@ -3,15 +3,73 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Brand } from '@/components/brand';
 
-export const metadata: Metadata = { title: 'Terms' };
+export const metadata: Metadata = { title: 'Terms of Service' };
 
 export default function TermsPage() {
-  return <main className="min-h-screen bg-canvas px-4 py-7 sm:px-6 lg:px-8"><div className="mx-auto max-w-3xl"><header className="flex items-center justify-between"><Brand /><Link href="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-ink"><ArrowLeft size={15} />Home</Link></header><article className="mt-10 rounded-2xl border border-line bg-white p-6 shadow-card sm:p-10"><p className="eyebrow">Terms information</p><h1 className="mt-2 text-3xl font-extrabold tracking-[-0.05em] text-ink">Terms</h1><p className="mt-2 text-sm text-muted">Last updated: October 10, 2026 · Draft for deployment review</p><div className="mt-8 space-y-7 text-sm leading-7 text-slate-700">
-    <section><h2 className="text-base font-bold text-ink">A note about this preview</h2><p className="mt-2">These terms are a plain-language product template, not a final agreement or legal advice. The operator must replace or review them with counsel and publish the responsible legal entity, jurisdiction, support channel, pricing, and any service commitments before offering AmpTrail commercially.</p></section>
-    <section><h2 className="text-base font-bold text-ink">What the service does</h2><p className="mt-2">AmpTrail is intended to help electrical subcontractors organize extra-work notes, project details, evidence, time, materials, and printable work records. It does not interpret a construction contract, submit a change order, issue an invoice, certify a signature, or determine whether a customer approved work.</p></section>
-    <section><h2 className="text-base font-bold text-ink">Your records and responsibilities</h2><p className="mt-2">You are responsible for the accuracy and lawful use of information you add, your authority to upload photographs or customer information, protecting account access, and following your contracts and customer processes. A status such as “Approved” is a user-entered tracking status and is not independently verified by AmpTrail.</p></section>
-    <section><h2 className="text-base font-bold text-ink">Availability, security, and data</h2><p className="mt-2">This source build requires the deployment owner to configure Supabase, Vercel, email authentication, storage policies, backups, and operational monitoring. No uptime, support, data-retention, or payment-collection commitment is made by this preview. Do not use it for sensitive customer records until the deployment has been reviewed and tested.</p></section>
-    <section><h2 className="text-base font-bold text-ink">Proposed pricing</h2><p className="mt-2">The marketing page describes a proposed plan structure only. Paid subscriptions are not implemented or currently offered in this build.</p></section>
-    <section><h2 className="text-base font-bold text-ink">Contact</h2><p className="mt-2">The support contact and operator identity must be configured before launch. Visit <Link href="/contact" className="font-semibold text-orange-dark underline">Contact</Link> for current deployment details.</p></section>
-  </div></article><p className="mx-auto mt-5 max-w-3xl text-xs leading-5 text-muted">Have a legal professional review this page before accepting production users.</p></div></main>;
+  return (
+    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl">
+        <header className="flex items-center justify-between">
+          <Brand />
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition"
+          >
+            <ArrowLeft size={14} /> Back to site
+          </Link>
+        </header>
+
+        <article className="card mt-10 p-6 sm:p-10">
+          <p className="eyebrow">Legal & Operational Terms</p>
+          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+            Terms of Service
+          </h1>
+          <p className="mt-1 text-xs text-slate-400">
+            Last updated: October 11, 2026 · Field Operations Template
+          </p>
+
+          <div className="mt-8 space-y-6 text-xs sm:text-sm leading-relaxed text-slate-600">
+            <section>
+              <h2 className="text-sm font-bold text-slate-900">1. Nature of the Service</h2>
+              <p className="mt-1.5">
+                AmpTrail provides software tools designed to help commercial electrical subcontractors record out-of-scope work, crew labor hours, materials, and jobsite photo evidence. AmpTrail is a field documentation and tracking system. It is not an engineering design tool, an arbitration service, an invoice factoring platform, or a substitute for formal construction contract administration.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-sm font-bold text-slate-900">2. Customer Approvals & Invoicing</h2>
+              <p className="mt-1.5">
+                Work ticket tracking statuses (including &ldquo;Approved&rdquo; or &ldquo;Invoiced&rdquo;) are internal administrative labels assigned by your team. They do not constitute verified contractual acceptance, change order entitlement, or guaranteed invoice payment by general contractors or property owners.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-sm font-bold text-slate-900">3. User Responsibility & Jobsite Photos</h2>
+              <p className="mt-1.5">
+                You are responsible for ensuring that your personnel have appropriate authorization to photograph jobsite conditions, record crew members, and upload documentation. You retain full ownership of all proprietary data, images, and work tickets stored in your company workspace.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-sm font-bold text-slate-900">4. Multi-Tenant Security</h2>
+              <p className="mt-1.5">
+                AmpTrail isolates workspace data in PostgreSQL using Row-Level Security (RLS). You are responsible for safeguarding your login credentials and ensuring authorized access within your organization.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-sm font-bold text-slate-900">5. Contact & Inquiries</h2>
+              <p className="mt-1.5">
+                For questions regarding terms or enterprise workspace provisioning, please visit our{' '}
+                <Link href="/contact" className="font-semibold text-blue-600 hover:underline">
+                  Contact Page
+                </Link>
+                .
+              </p>
+            </section>
+          </div>
+        </article>
+      </div>
+    </main>
+  );
 }

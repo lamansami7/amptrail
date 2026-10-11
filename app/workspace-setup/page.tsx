@@ -8,33 +8,52 @@ import { SignOutButton } from '@/components/workspace/sign-out-button';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient } from '@/lib/supabase/server';
 
-export const metadata: Metadata = { title: 'Workspace setup' };
+export const metadata: Metadata = { title: 'Workspace Setup' };
 
 export default async function WorkspaceSetupPage() {
   if (!isSupabaseConfigured()) redirect('/login?error=supabase_not_configured');
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  return <main className="min-h-screen bg-canvas px-4 py-8 sm:px-6 sm:py-12">
-    <div className="mx-auto max-w-4xl">
-      <header className="flex items-center justify-between gap-4">
-        <Brand />
-        <SignOutButton compact />
-      </header>
-      <section className="mt-12 rounded-2xl border border-line bg-white p-5 shadow-card sm:p-8">
-        <p className="eyebrow">Account connected</p>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-[-0.04em] text-ink">Your workspace is not ready yet.</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">AmpTrail could not find the company workspace associated with this account. No workspace data has been fabricated or loaded.</p>
-        <div className="mt-6">
-          <DataSetupMessage message="Confirm the database migration and account-provisioning trigger are installed, then ask your Supabase project administrator to check this account's company membership. If this account predates the migration, its workspace may need to be provisioned." />
-        </div>
-        <div className="mt-6 flex flex-wrap items-center gap-4">
-          <ButtonLink href="/">Return to AmpTrail</ButtonLink>
-          <Link href="/contact" className="text-sm font-semibold text-orange-dark underline underline-offset-4">Contact the deployment owner</Link>
-        </div>
-      </section>
-    </div>
-  </main>;
+  return (
+    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mx-auto max-w-3xl">
+        <header className="flex items-center justify-between gap-4">
+          <Brand />
+          <SignOutButton compact />
+        </header>
+
+        <section className="card mt-10 p-6 sm:p-8">
+          <p className="eyebrow">Account Initialization</p>
+          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900">
+            Workspace Provisioning
+          </h1>
+          <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-500">
+            AmpTrail is connecting your authenticated account to a company workspace. If this account was registered before database migrations were applied, its workspace membership record may need to be confirmed.
+          </p>
+
+          <div className="mt-6">
+            <DataSetupMessage message="Verify that the initial schema migration and user provisioning triggers are active in your PostgreSQL database. If your workspace was provisioned under a different company slug, contact your administrator." />
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <ButtonLink href="/dashboard">Check Workspace Status</ButtonLink>
+            <ButtonLink href="/" variant="secondary">
+              Return Home
+            </ButtonLink>
+            <Link
+              href="/contact"
+              className="text-xs font-semibold text-blue-600 hover:underline"
+            >
+              Contact Support
+            </Link>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }

@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-const optionalText = (max: number) => z.string().trim().max(max).transform((value) => value || null);
+const optionalText = (max: number) =>
+  z
+    .union([z.string().trim().max(max), z.null(), z.undefined()])
+    .transform((value) => (value ? String(value).trim() || null : null));
 
 export const projectSchema = z.object({
   name: z.string().trim().min(1, 'Enter a project name.').max(180, 'Project name must be 180 characters or fewer.'),

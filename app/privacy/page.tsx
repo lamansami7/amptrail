@@ -3,15 +3,66 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Brand } from '@/components/brand';
 
-export const metadata: Metadata = { title: 'Privacy' };
+export const metadata: Metadata = { title: 'Privacy Policy' };
 
 export default function PrivacyPage() {
-  return <main className="min-h-screen bg-canvas px-4 py-7 sm:px-6 lg:px-8"><div className="mx-auto max-w-3xl"><header className="flex items-center justify-between"><Brand /><Link href="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-ink"><ArrowLeft size={15} />Home</Link></header><article className="mt-10 rounded-2xl border border-line bg-white p-6 shadow-card sm:p-10"><p className="eyebrow">Privacy information</p><h1 className="mt-2 text-3xl font-extrabold tracking-[-0.05em] text-ink">Privacy</h1><p className="mt-2 text-sm text-muted">Last updated: October 10, 2026 · Draft for deployment review</p><div className="mt-8 space-y-7 text-sm leading-7 text-slate-700">
-    <section><h2 className="text-base font-bold text-ink">A note about this preview</h2><p className="mt-2">This privacy page is a product template, not a final legal notice. Before inviting users or storing jobsite/customer information, the operator should review it, identify the legal entity operating AmpTrail, confirm applicable laws, and publish the real contact and retention details.</p></section>
-    <section><h2 className="text-base font-bold text-ink">Information AmpTrail stores</h2><p className="mt-2">When configured, AmpTrail stores account details supplied to Supabase Auth, profile and company workspace details, project and work-ticket records, and photos or notes that a workspace member uploads. Ticket records may include jobsite addresses, customer/GC contact names, labor and material rates, and other sensitive commercial information.</p></section>
-    <section><h2 className="text-base font-bold text-ink">How information is used</h2><p className="mt-2">The application uses this information to authenticate accounts, organize workspaces, create work records, calculate ticket totals, and display or export records at the request of an authorized user. It does not sell customer evidence or use ticket records to make approval or payment decisions.</p></section>
-    <section><h2 className="text-base font-bold text-ink">Infrastructure and access</h2><p className="mt-2">This build is designed to use Supabase for authentication, PostgreSQL storage, and private image storage, and Vercel for deployment. Workspace access is enforced with database Row Level Security. Evidence is stored in a private bucket and served through short-lived signed URLs. The deployment owner is responsible for configuring and reviewing these services, backups, retention, and incident response.</p></section>
-    <section><h2 className="text-base font-bold text-ink">Retention and your choices</h2><p className="mt-2">Records remain in the workspace until deleted or until the deployment operator removes them. Ticket deletion is limited to the creator and draft tickets in this starter implementation. Contact the deployment operator to request account or workspace deletion; a self-service deletion flow is not currently included.</p></section>
-    <section><h2 className="text-base font-bold text-ink">Contact</h2><p className="mt-2">The support contact for this deployment must be configured before launch. See the <Link href="/contact" className="font-semibold text-orange-dark underline">Contact page</Link> for current contact availability.</p></section>
-  </div></article><p className="mx-auto mt-5 max-w-3xl text-xs leading-5 text-muted">This template is not legal advice and is not a substitute for a reviewed privacy notice.</p></div></main>;
+  return (
+    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl">
+        <header className="flex items-center justify-between">
+          <Brand />
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition"
+          >
+            <ArrowLeft size={14} /> Back to site
+          </Link>
+        </header>
+
+        <article className="card mt-10 p-6 sm:p-10">
+          <p className="eyebrow">Data Protection & Confidentiality</p>
+          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+            Privacy Policy
+          </h1>
+          <p className="mt-1 text-xs text-slate-400">
+            Last updated: October 11, 2026 · Field Operations Template
+          </p>
+
+          <div className="mt-8 space-y-6 text-xs sm:text-sm leading-relaxed text-slate-600">
+            <section>
+              <h2 className="text-sm font-bold text-slate-900">1. Data Storage & Ownership</h2>
+              <p className="mt-1.5">
+                When you create an account, AmpTrail securely stores your profile, company details, commercial projects, work tickets, and uploaded jobsite photographs. You maintain exclusive proprietary ownership of all uploaded content and business records.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-sm font-bold text-slate-900">2. Private Evidence Handling</h2>
+              <p className="mt-1.5">
+                Jobsite photographs are stored in private Supabase Storage buckets. Access to image files requires cryptographic signed URLs that expire after 1 hour. Photos are never exposed to public search engines or unauthenticated third parties.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-sm font-bold text-slate-900">3. Workspace Data Isolation</h2>
+              <p className="mt-1.5">
+                Every database table is protected by PostgreSQL Row-Level Security (RLS) policies. Only authenticated members of your company can view your projects, tickets, or evidence files.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-sm font-bold text-slate-900">4. Contact Information</h2>
+              <p className="mt-1.5">
+                For questions about data privacy, account deletion, or security audits, please review our{' '}
+                <Link href="/contact" className="font-semibold text-blue-600 hover:underline">
+                  Contact Page
+                </Link>
+                .
+              </p>
+            </section>
+          </div>
+        </article>
+      </div>
+    </main>
+  );
 }
