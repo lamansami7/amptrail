@@ -403,9 +403,12 @@ export function filterAnalyticsHit(input: URLSearchParams): URLSearchParams | nu
   const isSignUp = eventName === 'sign_up' && input.get('ep.amptrail_sign_up') === '1';
   if (!isPageView && !isSignUp) return null;
 
-  // Drop hits when Google Consent Mode explicitly denies analytics_storage (G1x0).
+  // Drop hits when Google Consent Mode explicitly denies analytics_storage.
+  // The last character of the consent string is the analytics state
+  // (1 = granted, 0 = denied), so any middle-character encoding (G100, G110,
+  // G1-0, G1x0, …) that ends in 0 must be treated as a denial.
   const gcs = input.get('gcs');
-  if (gcs && /^G1[01-]0$/.test(gcs)) return null;
+  if (gcs && /^G1.0$/.test(gcs)) return null;
 
   const rawPage = getSafeLocation(input.get('dl'));
   const clientId = input.get('cid') || '';
@@ -434,8 +437,9 @@ export function filterAnalyticsHit(input: URLSearchParams): URLSearchParams | nu
   }
 
   // Preserve valid consent signals; never forward arbitrary strings from a request.
+  // (Denied analytics states were already dropped above; x/- mean unset, not denied.)
   for (const [key, pattern] of [
-    ['gcs', /^G1[01-]{2}$/],
+    ['gcs', /^G1[01x-]{2}$/],
     ['gcd', /^[a-z0-9]{1,32}$/i],
     ['dma', /^[01]$/],
   ] as const) {

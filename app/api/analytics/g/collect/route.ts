@@ -22,8 +22,14 @@ async function collect(request: Request) {
 
     try {
       // Fixed destination, fresh allowlisted payload, no browser headers/cookies/IP.
-      await fetch(`https://www.google-analytics.com/g/collect?${safeHit}`, {
+      // GA4 ingests server-to-server hits as a form-encoded POST body. Query-
+      // string-only POSTs from a server IP are not treated as valid hits by
+      // google-analytics.com/g/collect, so the reconstructed parameters go in
+      // the body, never the URL.
+      await fetch('https://www.google-analytics.com/g/collect', {
         method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: safeHit.toString(),
         cache: 'no-store',
         credentials: 'omit',
         redirect: 'error',

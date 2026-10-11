@@ -467,8 +467,13 @@ describe('collection privacy boundary', () => {
     { en: 'form_submit' },
     { en: 'file_download' },
     { en: 'click' },
+    // Every analytics_storage-denied consent encoding (last character 0):
     { gcs: 'G100' },
+    { gcs: 'G110' },
+    { gcs: 'G1-0' },
+    { gcs: 'G1x0' },
     { en: 'sign_up', 'ep.amptrail_sign_up': '1', gcs: 'G110' },
+    { en: 'sign_up', 'ep.amptrail_sign_up': '1', gcs: 'G1x0' },
     { tid: 'G-OTHER' },
     { v: '1' },
     { cid: 'private@example.test' },
@@ -481,10 +486,18 @@ describe('collection privacy boundary', () => {
   ])('drops automatic, unconsented, malformed, or unsanitized hits: %j', (overrides) => {
     expect(filterAnalyticsHit(hit(overrides))).toBeNull();
   });
+
+  it('forwards consent signals whose analytics state is granted or unset', () => {
+    // Unset (no Consent Mode) is the normal browser state and must not block data.
+    expect(filterAnalyticsHit(hit({ gcs: 'G1-1' }))?.get('gcs')).toBe('G1-1');
+    // Unknown ad states with granted analytics must preserve the exact signal.
+    expect(filterAnalyticsHit(hit({ gcs: 'G1x1' }))?.get('gcs')).toBe('G1x1');
+    expect(filterAnalyticsHit(hit({ gcs: 'G111' }))?.get('gcs')).toBe('G111');
+  });
 });
 
 describe('first-party GA4 collection endpoint', () => {
-  it('forwards a sanitized GET hit without browser cookies, headers, or IP addresses', async () => {
+  it('forwards a sanitized GET hit as a form-encoded POST body without browser cookies, headers, or IP addresses', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetch);
     const response = await GET(new Request(`https://preview.example.test/api/analytics/g/collect?${hit()}`, {
@@ -494,10 +507,151 @@ describe('first-party GA4 collection endpoint', () => {
     expect(response.status).toBe(204);
     expect(fetch).toHaveBeenCalledTimes(1);
     const [url, options] = fetch.mock.calls[0];
-    expect(url).toBe(`https://www.google-analytics.com/g/collect?${filterAnalyticsHit(hit())}`);
-    expect(options).toMatchObject({ method: 'POST', credentials: 'omit', redirect: 'error', cache: 'no-store' });
-    expect(options).not.toHaveProperty('headers');
+    // Fixed destination with no parameters in the URL: GA4 server-to-server
+    // ingestion requires the hit in the form-encoded POST body.
+    expect(url).toBe('https://www.google-analytics.com/g/collect');
+    expect(options).toMatchObject({
+      method: 'POST',
+      credentials: 'omit',
+      redirect: 'error',
+      cache: 'no-store',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: filterAnalyticsHit(hit())!.toString(),
+    });
     expect(JSON.stringify(fetch.mock.calls)).not.toContain('private');
+  });
+
+  it('accepts the real gtag.js GET wire format and forwards only the allowlisted reconstruction', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetch);
+    // Captured shape of a real gtag.js beacon: protocol/shared parameters plus
+    // device metadata and experiment flags on the query string.
+    const wireQuery = [
+      'v=2',
+      `tid=${GA_MEASUREMENT_ID}`,
+      'gtm=45je63p1h1v9104254764za200zd9104254764',
+      '_p=1774633611846',
+      '_gaz=1',
+      'gcs=G1-1',
+      'gcd=13l3t3l3l5l1',
+      'npa=0',
+      'dma=0',
+      'cid=1943252256.1774633612',
+      'ul=en-us',
+      'sr=1280x720',
+      'uaa=arm',
+      'uab=64',
+      'uafvl=Not%3AA-Brand%3B99.0.0.0%7CHeadlessChrome%3B145.0.7632.6',
+      'uamb=0',
+      'uam=',
+      'uap=macOS',
+      'uapv=26.3.1',
+      'uaw=0',
+      'are=1',
+      'frm=0',
+      'pscdl=noapi',
+      '_eu=AAAAAGA',
+      '_s=1',
+      'tag_exp=0~115938466~115938468',
+      'sid=1774633612',
+      'sct=1',
+      'seg=0',
+      'en=page_view',
+      '_fv=1',
+      '_nsi=1',
+      '_ss=1',
+      '_ee=1',
+      'dt=AmpTrail+%C2%B7+Home',
+      `dl=${encodeURIComponent(`${ANALYTICS_ORIGIN}/`)}`,
+      'dr=',
+      'ep.page_path=%2F',
+      'ep.amptrail_page_view=1',
+    ].join('&');
+
+    const response = await GET(new Request(`https://preview.example.test/api/analytics/g/collect?${wireQuery}`));
+
+    expect(response.status).toBe(204);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, options] = fetch.mock.calls[0];
+    expect(url).toBe('https://www.google-analytics.com/g/collect');
+    const forwarded = new URLSearchParams(options.body);
+    expect(forwarded.toString()).toBe(filterAnalyticsHit(new URLSearchParams(wireQuery))!.toString());
+    // Reconstructed, never trusted from the request:
+    expect(forwarded.get('dt')).toBe('AmpTrail · Home');
+    expect(forwarded.get('dl')).toBe(`${ANALYTICS_ORIGIN}/`);
+    // Session metadata preserved so GA derives session_start/first_visit:
+    expect(forwarded.get('sid')).toBe('1774633612');
+    expect(forwarded.get('sct')).toBe('1');
+    expect(forwarded.get('_ss')).toBe('1');
+    expect(forwarded.get('_fv')).toBe('1');
+    expect(forwarded.get('gcs')).toBe('G1-1');
+    // Everything outside the allowlist must not reach Google:
+    for (const blocked of ['gtm', '_gaz', '_eu', '_nsi', '_ee', 'tag_exp', 'ul', 'sr', 'uaa', 'uab', 'uafvl', 'uamb', 'uam', 'uap', 'uapv', 'uaw', 'are', 'frm', 'pscdl', 'ep.amptrail_page_view']) {
+      expect(forwarded.has(blocked), `must not forward ${blocked}`).toBe(false);
+    }
+    // Non-personalized-ads signal is forced on, never trusted from the request:
+    expect(forwarded.get('npa')).toBe('1');
+    expect(JSON.stringify(fetch.mock.calls)).not.toContain('HeadlessChrome');
+  });
+
+  it('accepts the gtag.js hybrid POST (shared params in query, event params in form body) used with transport_url', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetch);
+    const shared = [
+      'v=2',
+      `tid=${GA_MEASUREMENT_ID}`,
+      'gcs=G1-1',
+      'gcd=13l3t3l3l5l1',
+      'dma=0',
+      'cid=1943252256.1774633612',
+      'frm=0',
+      'sid=1774633612',
+      'sct=1',
+      'seg=0',
+    ].join('&');
+    // navigator.sendBeacon posts text/plain form data with a \n batch boundary.
+    const response = await POST(new Request(`https://preview.example.test/api/analytics/g/collect?${shared}`, {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain;charset=UTF-8' },
+      body:
+        'en=page_view&dt=AmpTrail+%C2%B7+Home&dl=' +
+        encodeURIComponent(`${ANALYTICS_ORIGIN}/`) +
+        '&dr=&ep.page_path=%2F&ep.amptrail_page_view=1&_ss=1&_fv=1&_et=25',
+    }));
+
+    expect(response.status).toBe(204);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, options] = fetch.mock.calls[0];
+    expect(url).toBe('https://www.google-analytics.com/g/collect');
+    const forwarded = new URLSearchParams(options.body);
+    expect(forwarded.get('en')).toBe('page_view');
+    expect(forwarded.get('cid')).toBe('1943252256.1774633612');
+    expect(forwarded.get('dl')).toBe(`${ANALYTICS_ORIGIN}/`);
+    expect(forwarded.get('_et')).toBe('25');
+    expect(forwarded.get('gcs')).toBe('G1-1');
+  });
+
+  it('accepts a real-wire sign_up event and strips its marker, keeping only method=email', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetch);
+    const shared = `v=2&tid=${GA_MEASUREMENT_ID}&gcs=G111&dma=0&cid=1943252256.1774633612&sid=1774633612&sct=1&seg=1`;
+    const response = await POST(new Request(`https://preview.example.test/api/analytics/g/collect?${shared}`, {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain;charset=UTF-8' },
+      body:
+        'en=sign_up&dt=AmpTrail+%C2%B7+Sign+up&dl=' +
+        encodeURIComponent(`${ANALYTICS_ORIGIN}/signup`) +
+        '&dr=&ep.page_path=%2Fsignup&ep.amptrail_sign_up=1&ep.method=email&_et=0',
+    }));
+
+    expect(response.status).toBe(204);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const forwarded = new URLSearchParams(fetch.mock.calls[0][1].body);
+    expect(forwarded.get('en')).toBe('sign_up');
+    expect(forwarded.get('ep.method')).toBe('email');
+    expect(forwarded.get('dl')).toBe(`${ANALYTICS_ORIGIN}/signup`);
+    expect(forwarded.get('dt')).toBe('AmpTrail · Sign up');
+    expect(forwarded.has('ep.amptrail_sign_up')).toBe(false);
   });
 
   it('accepts newline-batched POST events including sanitized sign_up while dropping automatic page views and form data', async () => {
@@ -519,9 +673,11 @@ describe('first-party GA4 collection endpoint', () => {
 
     expect(response.status).toBe(204);
     expect(fetch).toHaveBeenCalledTimes(2);
-    const urls = fetch.mock.calls.map((call) => String(call[0]));
-    expect(urls.some((url) => url.includes('en=page_view'))).toBe(true);
-    expect(urls.some((url) => url.includes('en=sign_up') && url.includes('ep.method=email'))).toBe(true);
+    const bodies = fetch.mock.calls.map((call) => String(call[1]?.body ?? ''));
+    expect(bodies.every((body) => body.startsWith('v=2&tid='))).toBe(true);
+    expect(bodies.some((body) => body.includes('en=page_view'))).toBe(true);
+    expect(bodies.some((body) => body.includes('en=sign_up') && body.includes('ep.method=email'))).toBe(true);
+    expect(fetch.mock.calls.every((call) => String(call[0]) === 'https://www.google-analytics.com/g/collect')).toBe(true);
     expect(JSON.stringify(fetch.mock.calls)).not.toContain('private');
     expect(JSON.stringify(fetch.mock.calls)).not.toContain('Private');
   });
