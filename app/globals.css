@@ -303,6 +303,14 @@
     appearance: none;
   }
 
+  /* On phones, 16px inputs prevent iOS from zooming in on focus and read
+     better outdoors. Larger screens keep the denser 14px. */
+  @media (max-width: 40em) {
+    .field-control {
+      font-size: 1rem;
+    }
+  }
+
   /* ---- Utility ---- */
   .divider {
     border-color: var(--color-line);

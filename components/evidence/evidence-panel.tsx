@@ -62,6 +62,7 @@ export function EvidencePanel({
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [caption, setCaption] = useState('');
   const [notes, setNotes] = useState('');
@@ -240,45 +241,63 @@ export function EvidencePanel({
             )}
           >
             <div className="flex flex-col gap-4 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="group relative flex h-32 w-full shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-surface transition-colors duration-150 hover:border-brand-300 sm:h-36 sm:w-40"
-                aria-label={previewUrl ? 'Choose a different photo' : undefined}
-              >
-                {previewUrl ? (
-                  <img
-                    src={previewUrl}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="flex flex-col items-center px-3 text-center">
-                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand-50 text-brand-700 transition-transform duration-150 group-hover:scale-105">
-                      <ImagePlus size={19} aria-hidden="true" />
+              <div className="flex shrink-0 flex-col gap-2 sm:w-40">
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="group relative flex h-32 w-full items-center justify-center overflow-hidden rounded-lg border border-line bg-surface transition-colors duration-150 hover:border-brand-300 sm:h-36"
+                  aria-label={previewUrl ? 'Take a new photo' : 'Take a photo'}
+                >
+                  {previewUrl ? (
+                    <img
+                      src={previewUrl}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex flex-col items-center px-3 text-center">
+                      <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand-50 text-brand-700 transition-transform duration-150 group-hover:scale-105">
+                        <Camera size={19} aria-hidden="true" />
+                      </span>
+                      <span className="mt-2 text-[12.5px] font-semibold text-ink">Take a photo</span>
+                      <span className="mt-0.5 text-[11px] text-subtle">JPG, PNG or WebP · 10 MB max</span>
                     </span>
-                    <span className="mt-2 text-[12.5px] font-semibold text-ink">
-                      Take or choose a photo
+                  )}
+                  {file && (
+                    <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-ink/85 px-2.5 py-1 text-[10.5px] font-semibold text-white">
+                      Retake photo
                     </span>
-                    <span className="mt-0.5 text-[11px] text-subtle">JPG, PNG or WebP · 10 MB max</span>
-                  </span>
-                )}
-                {file && (
-                  <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-ink/85 px-2.5 py-1 text-[10.5px] font-semibold text-white">
-                    Change photo
-                  </span>
-                )}
-              </button>
+                  )}
+                </button>
 
-              <input
-                ref={inputRef}
-                className="sr-only"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                capture="environment"
-                onChange={(event) => selectFile(event.target.files?.[0] ?? null)}
-                aria-label="Upload an evidence photo"
-              />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => galleryInputRef.current?.click()}
+                >
+                  {!previewUrl && <ImagePlus size={15} aria-hidden="true" />}
+                  Choose from gallery
+                </Button>
+
+                <input
+                  ref={inputRef}
+                  className="sr-only"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  capture="environment"
+                  onChange={(event) => selectFile(event.target.files?.[0] ?? null)}
+                  aria-label="Take an evidence photo with the camera"
+                />
+                <input
+                  ref={galleryInputRef}
+                  className="sr-only"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(event) => selectFile(event.target.files?.[0] ?? null)}
+                  aria-label="Choose an evidence photo from your gallery"
+                />
+              </div>
 
               <div className="min-w-0 flex-1 space-y-3">
                 {file ? (

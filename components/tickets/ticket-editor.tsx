@@ -395,7 +395,7 @@ export function TicketEditor({
       action={formAction}
       onChange={() => setDirty(true)}
       onSubmit={() => setDirty(false)}
-      className="pb-24 lg:pb-0"
+      className="pb-40 lg:pb-0"
     >
       {ticket?.id && <input type="hidden" name="id" value={ticket.id} />}
       <input type="hidden" name="occurred_at" value={occurredAtIso} />

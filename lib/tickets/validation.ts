@@ -30,7 +30,11 @@ export function parseTicketFormData(formData: FormData) {
     }
   };
 
-  const localDate = String(formData.get('occurred_at') || '');
+  // The hidden ISO field is maintained by the editor on the client. As a
+  // progressive-enhancement fallback, accept the visible datetime-local
+  // value directly (no-JS form submits).
+  const hiddenDate = String(formData.get('occurred_at') || '');
+  const localDate = hiddenDate || String(formData.get('occurred_at_local') || '');
   const parsedDate = new Date(localDate);
   const candidate = {
     project_id: String(formData.get('project_id') || ''),
