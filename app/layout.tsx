@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
+import Script from 'next/script';
+import { GoogleAnalyticsPageViews } from '@/components/analytics/google-analytics-page-views';
+import { GA_INITIALIZATION_SCRIPT, GA_MEASUREMENT_ID } from '@/lib/analytics/google-analytics';
 import './globals.css';
 
 /**
@@ -93,7 +96,21 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={inter.variable} data-scroll-behavior="smooth">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Script
+          id="ga4-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{ __html: GA_INITIALIZATION_SCRIPT }}
+        />
+        <Script
+          id="ga4-loader"
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+          referrerPolicy="origin"
+        />
+        <GoogleAnalyticsPageViews />
+      </body>
     </html>
   );
 }
