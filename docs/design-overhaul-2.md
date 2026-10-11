@@ -184,5 +184,5 @@ Mobile (390px): `after-mobile-dashboard.jpg`, `after-mobile-ticket-editor.jpg`, 
 ## 10. Links
 
 - **Branch:** `arena/2d330f6e-amptrail`
-- **Pull request:** opened against `main` (see PR link in the session).
-- **Vercel preview:** not available from this environment.
+- **Pull request:** [#6 — Design Overhaul 2.0](https://github.com/lamansami7/amptrail/pull/6)
+- **Vercel preview:** not available from this environment (no Vercel connection in the session).
