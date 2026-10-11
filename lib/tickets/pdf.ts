@@ -47,7 +47,7 @@ export type WorkRecordInput = {
   images?: Record<string, string>;
 };
 
-const INK: [number, number, number] = [11, 18, 32];
+const INK: [number, number, number] = [13, 27, 53];
 const BRAND: [number, number, number] = [37, 99, 235];
 const SLATE: [number, number, number] = [86, 100, 118];
 const FAINT: [number, number, number] = [148, 163, 184];
@@ -134,38 +134,26 @@ export function buildWorkRecordPdf(input: WorkRecordInput) {
   doc.setFillColor(...INK);
   doc.roundedRect(left, y - 18, contentWidth, bandHeight, 8, 8, 'F');
 
-  // Bolt mark (vector — standard PDF fonts cannot render emoji)
-  const boltX = left + 18;
-  const boltY = y - 4;
-  doc.setFillColor(...BRAND);
-  doc.roundedRect(boltX, boltY, 30, 30, 7, 7, 'F');
-  doc.setFillColor(255, 255, 255);
-  doc.lines(
-    [
-      [5, -9],
-      [-4.2, 0],
-      [3.4, -8.4],
-      [4.2, 0],
-      [-7.2, 17],
-      [1.2, -9.6],
-      [-2.4, 0],
-    ],
-    boltX + 11,
-    boltY + 23,
-    [1, 1],
-    'F',
-    true
-  );
+  drawPdfBrandMark(doc, left + 16, y - 7, 28, true);
 
+  const wordmarkX = left + 54;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12.5);
   doc.setTextColor(255, 255, 255);
-  doc.text((companyName || 'AmpTrail').toUpperCase().slice(0, 46), left + 58, y + 2);
+  doc.text('Amp', wordmarkX, y + 3);
+  const ampWidth = doc.getTextWidth('Amp');
+  doc.setTextColor(111, 160, 255);
+  doc.text('Trail', wordmarkX + ampWidth, y + 3);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(170, 186, 208);
-  doc.text('TIME & MATERIAL WORK RECORD', left + 58, y + 16);
+  doc.setFontSize(7.6);
+  doc.setTextColor(198, 211, 231);
+  doc.text('TIME & MATERIAL WORK RECORD', wordmarkX, y + 18);
+  if (companyName) {
+    doc.setFontSize(7.1);
+    doc.setTextColor(145, 164, 192);
+    doc.text(`Prepared for ${companyName}`.slice(0, 54), wordmarkX, y + 31);
+  }
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
@@ -490,7 +478,7 @@ export function buildWorkRecordPdf(input: WorkRecordInput) {
     doc.setFontSize(7.2);
     doc.setTextColor(...SLATE);
     doc.text(
-      `${companyName || 'AmpTrail'} · ${ticket.ticket_number} · ${project.name}`.slice(0, 92),
+      `AmpTrail · ${companyName ? `${companyName} · ` : ''}${ticket.ticket_number} · ${project.name}`.slice(0, 92),
       left,
       pageHeight - 21
     );
@@ -498,6 +486,63 @@ export function buildWorkRecordPdf(input: WorkRecordInput) {
   }
 
   return doc;
+}
+
+function drawPdfBrandMark(doc: jsPDF, x: number, y: number, size: number, onDark: boolean) {
+  const scale = size / 48;
+  const originX = x + 3 * scale;
+  const originY = y + 46 * scale;
+
+  // A is built as a filled letterform, not a standalone lightning glyph.
+  const monogramColor: [number, number, number] = onDark ? [67, 133, 255] : BRAND;
+  doc.setFillColor(...monogramColor);
+  doc.lines(
+    [
+      [20, -44],
+      [21, 44],
+      [-10, 0],
+      [-4, -9],
+      [-14, 0],
+      [-4, 9],
+      [-10, 0],
+    ],
+    originX,
+    originY,
+    [scale, scale],
+    'F',
+    true
+  );
+
+  const counterColor: [number, number, number] = onDark ? INK : [255, 255, 255];
+  doc.setFillColor(...counterColor);
+  doc.triangle(
+    x + 24 * scale,
+    y + 15.35 * scale,
+    x + 18.4 * scale,
+    y + 28.15 * scale,
+    x + 29.6 * scale,
+    y + 28.15 * scale,
+    'F'
+  );
+
+  const boltColor: [number, number, number] = onDark ? [255, 255, 255] : INK;
+  doc.setFillColor(...boltColor);
+  doc.lines(
+    [
+      [-5.65, 9.7],
+      [4.4, 0],
+      [-1.7, 7.9],
+      [7.55, -11.2],
+      [-4.3, 0],
+      [2.15, -6.4],
+      [-2.45, 0],
+    ],
+    x + 25.1 * scale,
+    y + 17.2 * scale,
+    [scale, scale],
+    'F',
+    true
+  );
 }
 
 function drawContinuationHeader(
@@ -508,17 +553,22 @@ function drawContinuationHeader(
   right: number
 ) {
   const y = 46;
+  drawPdfBrandMark(doc, left, y - 13, 17, false);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.4);
+  doc.setFontSize(8.2);
   doc.setTextColor(...INK);
-  doc.text(`${ticket.ticket_number} — continued`, left, y);
+  doc.text('AmpTrail', left + 22, y - 3);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...SLATE);
+  doc.text(`${ticket.ticket_number} — continued`, left + 22, y + 8);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...SLATE);
-  doc.text(project.name.slice(0, 48), right, y, { align: 'right' });
+  doc.text(project.name.slice(0, 48), right, y + 1, { align: 'right' });
   doc.setDrawColor(...LINE);
   doc.setLineWidth(0.7);
-  doc.line(left, y + 8, right, y + 8);
+  doc.line(left, y + 14, right, y + 14);
   return y + 30;
 }
 

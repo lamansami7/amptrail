@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">AmpTrail — document the work, protect the paper trail</title>
+  <desc id="description">AmpTrail field documentation software for electrical subcontractors.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101E3A"/>
+      <stop offset="0.55" stop-color="#0D1B35"/>
+      <stop offset="1" stop-color="#091326"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.88" cy="0.1" r="0.74">
+      <stop offset="0" stop-color="#2563EB" stop-opacity="0.42"/>
+      <stop offset="0.6" stop-color="#2563EB" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#2563EB" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse">
+      <path d="M56 0H0v56" fill="none" stroke="#AFC7F8" stroke-opacity="0.055" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#72A7FF"/>
+      <stop offset="1" stop-color="#3D7CF4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#background)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <g transform="translate(94 66)">
+    <g transform="translate(0 0) scale(1.15)">
+      <path d="M20.21 5.08c1.49-3.1 6.09-3.1 7.58 0L47.36 45.4H35.75l-3.89-8.2H16.14l-3.89 8.2H.64L20.21 5.08Zm3.79 10.27-5.6 12.8h11.2L24 15.35Z" fill="#4385FF" fill-rule="evenodd"/>
+      <path d="m25.1 17.2-5.65 9.7h4.4l-1.7 7.9 7.55-11.2H25.4l2.15-6.4H25.1Z" fill="#FFFFFF"/>
+    </g>
+    <text x="68" y="40" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700" letter-spacing="-1.5" fill="#FFFFFF">Amp<tspan fill="#72A7FF">Trail</tspan></text>
+  </g>
+
+  <text x="96" y="285" font-family="Inter, Arial, sans-serif" font-size="68" font-weight="700" letter-spacing="-2.8" fill="#FFFFFF">Document the work.</text>
+  <text x="96" y="369" font-family="Inter, Arial, sans-serif" font-size="68" font-weight="700" letter-spacing="-2.8" fill="url(#accent)">Protect the paper trail.</text>
+  <text x="100" y="428" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" fill="#CBD5E1">Extra work, labor, materials and jobsite evidence — together in one</text>
+  <text x="100" y="460" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="400" fill="#CBD5E1">field-ready record, built for electrical subcontractors.</text>
+
+  <rect x="96" y="516" width="410" height="48" rx="24" fill="#13294B" stroke="#3B70C9" stroke-opacity="0.72"/>
+  <circle cx="119" cy="540" r="4.5" fill="#61D9AD"/>
+  <text x="137" y="546" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="600" letter-spacing="0.35" fill="#D7E5FF">FIELD DOCUMENTATION · BUILT FOR THE JOBSITE</text>
+  <text x="1104" y="546" text-anchor="end" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="500" fill="#94A3B8">getamptrail.vercel.app</text>
+</svg>

@@ -1,27 +1,53 @@
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
-/**
- * AmpTrail mark: an electric bolt inside a rounded field, paired with a
- * tight, confident wordmark. The mark alone is used in compact contexts.
- */
-export function BrandMark({ className, size = 'md' }: { className?: string; size?: 'sm' | 'md' | 'lg' }) {
-  const box = size === 'sm' ? 'h-7 w-7 rounded-[0.5rem]' : size === 'lg' ? 'h-10 w-10 rounded-xl' : 'h-8 w-8 rounded-[0.625rem]';
-  const glyph = size === 'sm' ? 14 : size === 'lg' ? 21 : 17;
+type BrandSize = 'sm' | 'md' | 'lg';
 
+const markSizes: Record<BrandSize, string> = {
+  sm: 'h-7 w-7',
+  md: 'h-8 w-8',
+  lg: 'h-10 w-10',
+};
+
+const wordmarkSizes: Record<BrandSize, string> = {
+  sm: 'text-[15px]',
+  md: 'text-[17px]',
+  lg: 'text-[20px]',
+};
+
+/**
+ * AmpTrail's monogram: a custom-built capital A with a lightning cut running
+ * through its counter and crossbar. The blue A stays consistent on both
+ * surfaces; only the bolt changes for contrast.
+ */
+export function BrandMark({
+  className,
+  size = 'md',
+  inverted = false,
+}: {
+  className?: string;
+  size?: BrandSize;
+  inverted?: boolean;
+}) {
   return (
-    <span
-      className={cn(
-        'grid shrink-0 place-items-center bg-brand-600 text-white shadow-[0_1px_2px_rgb(11_18_32/0.25),inset_0_1px_0_rgb(255_255_255/0.18)]',
-        box,
-        className
-      )}
+    <svg
+      className={cn('block shrink-0', markSizes[size], className)}
+      viewBox="0 0 48 48"
+      fill="none"
       aria-hidden="true"
+      focusable="false"
     >
-      <svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M13.6 2.2a.75.75 0 0 1 .72.95l-1.4 5.1h4.2a.75.75 0 0 1 .57 1.24l-8.6 10.4a.75.75 0 0 1-1.31-.7l1.5-5.44H5.1a.75.75 0 0 1-.57-1.24l8.5-10.2a.75.75 0 0 1 .57-.3Z" />
-      </svg>
-    </span>
+      <path
+        d="M20.21 5.08c1.49-3.1 6.09-3.1 7.58 0L47.36 45.4H35.75l-3.89-8.2H16.14l-3.89 8.2H.64L20.21 5.08Zm3.79 10.27-5.6 12.8h11.2L24 15.35Z"
+        fill={inverted ? '#4385FF' : '#2563EB'}
+        fillRule="evenodd"
+        clipRule="evenodd"
+      />
+      <path
+        d="m25.1 17.2-5.65 9.7h4.4l-1.7 7.9 7.55-11.2H25.4l2.15-6.4H25.1Z"
+        fill={inverted ? '#FFFFFF' : '#0D1B35'}
+      />
+    </svg>
   );
 }
 
@@ -33,27 +59,35 @@ export function Brand({
   className,
 }: {
   href?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: BrandSize;
   inverted?: boolean;
   compact?: boolean;
   className?: string;
 }) {
-  const text = size === 'sm' ? 'text-[15px]' : size === 'lg' ? 'text-[19px]' : 'text-[17px]';
-
   return (
     <Link
       href={href}
       aria-label="AmpTrail home"
       className={cn(
-        'group inline-flex items-center gap-2.5 rounded-lg focus-visible:outline-none',
+        'group inline-flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:outline-none',
         className
       )}
     >
-      <BrandMark size={size} className="transition-transform duration-200 group-hover:scale-[1.04]" />
+      <BrandMark
+        size={size}
+        inverted={inverted}
+        className="transition-transform duration-200 group-hover:scale-[1.035]"
+      />
       {!compact && (
-        <span className={cn('flex items-baseline font-semibold tracking-[-0.028em]', text)}>
+        <span
+          aria-hidden="true"
+          className={cn(
+            'inline-flex items-center font-semibold leading-none tracking-[-0.045em]',
+            wordmarkSizes[size]
+          )}
+        >
           <span className={inverted ? 'text-white' : 'text-ink'}>Amp</span>
-          <span className={inverted ? 'text-brand-300' : 'text-brand-600'}>Trail</span>
+          <span className={inverted ? 'text-[#6FA0FF]' : 'text-brand-600'}>Trail</span>
         </span>
       )}
     </Link>
