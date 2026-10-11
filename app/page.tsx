@@ -62,16 +62,11 @@ const workflow = [
   },
   {
     step: '02',
-    title: 'Document the extra work',
-    body: 'Describe the condition, the direction received, and the area. Add labor hours, materials and equipment on the same screen.',
+    title: 'Document the work on site',
+    body: 'Describe the condition and the direction received, add labor hours, materials and equipment, and attach captioned photos while the work is still visible.',
   },
   {
     step: '03',
-    title: 'Attach the proof on site',
-    body: 'Take photos straight from the phone and caption them while the work is still visible.',
-  },
-  {
-    step: '04',
     title: 'Send a record that holds up',
     body: 'Export a formatted PDF with line-item detail and blank acknowledgement lines for the site representative.',
   },
@@ -199,8 +194,8 @@ export default function HomePage() {
               </h1>
 
               <p className="mt-6 text-[1.0625rem] leading-7 text-body sm:text-lg sm:leading-8">
-                Capture extra work, track labor and materials, and organize jobsite evidence — all in
-                one workspace built for electrical subcontractors.
+                Document extra electrical work, capture jobsite evidence, and create professional
+                work tickets — one workspace built for electrical subcontractors.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -278,7 +273,7 @@ export default function HomePage() {
               <div className="lg:sticky lg:top-24">
                 <p className="eyebrow">How it works</p>
                 <h2 className="mt-3 text-[1.75rem] font-semibold tracking-[-0.025em] text-ink sm:text-[2rem]">
-                  Four steps from the jobsite to a finished record.
+                  Three steps from the jobsite to a finished record.
                 </h2>
                 <p className="mt-3 text-[15px] leading-7 text-muted">
                   The workflow is designed for someone standing in a mechanical room, holding a

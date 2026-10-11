@@ -24,7 +24,7 @@ const quickLinks: Array<[string, string, string]> = [
   ['Reset a password', '/forgot-password', 'Send yourself a secure reset link'],
   ['Sign-in link expired', '/forgot-password', 'Request a fresh recovery email'],
   ['Workspace locked', '/workspace-setup', 'Membership provisioning steps'],
-  ['How it works', '/#workflow', 'The four-step field workflow'],
+  ['How it works', '/#workflow', 'The three-step field workflow'],
 ];
 
 const topics: Array<{ icon: typeof Mail; title: string; body: string }> = [
