@@ -9,6 +9,10 @@ async function probe(request: NextRequest) {
   if (shape === 'null204') return new Response(null, { status: 204 });
   if (shape === 'empty200') return new Response('', { status: 200 });
   if (shape === 'null200') return new Response(null, { status: 200 });
+  if (shape === 'ct204empty') return new Response('', { status: 204, headers: { 'content-type': 'text/plain' } });
+  if (shape === 'ct200null') return new Response(null, { status: 200, headers: { 'content-type': 'text/plain' } });
+  if (shape === 'ct200empty') return new Response('', { status: 200, headers: { 'content-type': 'text/plain' } });
+  if (shape === 'body204') return new Response('ok', { status: 204, headers: { 'content-type': 'text/plain' } });
   return Response.json({ ok: true, shape, method: request.method });
 }
 
