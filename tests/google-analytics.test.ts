@@ -504,7 +504,13 @@ describe('first-party GA4 collection endpoint', () => {
       headers: { cookie: 'private-session', 'x-forwarded-for': '192.0.2.1', 'user-agent': 'private-browser' },
     }));
 
-    expect(response.status).toBe(204);
+    // Regression: this stack crashes serializing null/empty-body Responses from
+    // a route handler (opaque 500s on Vercel), which silently killed all hits.
+    // Lock in the safe response shape: small non-empty JSON 200 (valid on Node,
+    // serializes cleanly on Vercel). The Google tag never reads this response.
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('application/json');
+    expect(await response.json()).toEqual({ ok: true });
     expect(fetch).toHaveBeenCalledTimes(1);
     const [url, options] = fetch.mock.calls[0];
     // Fixed destination with no parameters in the URL: GA4 server-to-server
@@ -570,7 +576,7 @@ describe('first-party GA4 collection endpoint', () => {
 
     const response = await GET(new Request(`https://preview.example.test/api/analytics/g/collect?${wireQuery}`));
 
-    expect(response.status).toBe(204);
+    expect(response.status).toBe(200);
     expect(fetch).toHaveBeenCalledTimes(1);
     const [url, options] = fetch.mock.calls[0];
     expect(url).toBe('https://www.google-analytics.com/g/collect');
@@ -619,7 +625,7 @@ describe('first-party GA4 collection endpoint', () => {
         '&dr=&ep.page_path=%2F&ep.amptrail_page_view=1&_ss=1&_fv=1&_et=25',
     }));
 
-    expect(response.status).toBe(204);
+    expect(response.status).toBe(200);
     expect(fetch).toHaveBeenCalledTimes(1);
     const [url, options] = fetch.mock.calls[0];
     expect(url).toBe('https://www.google-analytics.com/g/collect');
@@ -644,7 +650,7 @@ describe('first-party GA4 collection endpoint', () => {
         '&dr=&ep.page_path=%2Fsignup&ep.amptrail_sign_up=1&ep.method=email&_et=0',
     }));
 
-    expect(response.status).toBe(204);
+    expect(response.status).toBe(200);
     expect(fetch).toHaveBeenCalledTimes(1);
     const forwarded = new URLSearchParams(fetch.mock.calls[0][1].body);
     expect(forwarded.get('en')).toBe('sign_up');
@@ -671,7 +677,9 @@ describe('first-party GA4 collection endpoint', () => {
       ].join('\n'),
     }));
 
-    expect(response.status).toBe(204);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('application/json');
+    expect(await response.json()).toEqual({ ok: true });
     expect(fetch).toHaveBeenCalledTimes(2);
     const bodies = fetch.mock.calls.map((call) => String(call[1]?.body ?? ''));
     expect(bodies.every((body) => body.startsWith('v=2&tid='))).toBe(true);
@@ -686,7 +694,8 @@ describe('first-party GA4 collection endpoint', () => {
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
     const response = await GET(new Request(`https://preview.example.test/api/analytics/g/collect?${hit({ 'ep.amptrail_page_view': '' })}`));
-    expect(response.status).toBe(204);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -697,13 +706,15 @@ describe('first-party GA4 collection endpoint', () => {
       method: 'POST',
       body: 'x'.repeat(64 * 1024 + 1),
     }));
-    expect(response.status).toBe(204);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it('isolates Google network failures from the application', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('unavailable')));
     const response = await POST(new Request(`https://preview.example.test/api/analytics/g/collect?${hit()}`, { method: 'POST' }));
-    expect(response.status).toBe(204);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
   });
 });

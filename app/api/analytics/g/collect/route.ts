@@ -3,15 +3,29 @@ import { filterAnalyticsHit } from '@/lib/analytics/google-analytics';
 const MAX_BODY_LENGTH = 64 * 1024;
 const MAX_BATCH_EVENTS = 20;
 
+/**
+ * The Google tag never reads the relay's response (sendBeacon/image/fetch all
+ * fire-and-forget), so the status and body are a platform concern.
+ *
+ * This stack (Next 16 on Vercel's Node 22 runtime) crashes with an opaque
+ * 500 when serializing null- or empty-body route-handler responses (verified
+ * in production: null+204, null+200, ''+200 all 500), while Node's fetch
+ * implementation rejects non-null bodies on 204. The one response shape that
+ * is valid on Node AND serializes cleanly on Vercel is a small non-empty
+ * JSON 200 — verified in production before this fix.
+ */
+function ok() {
+  return Response.json({ ok: true });
+}
+
 async function collect(request: Request) {
-  try {
   const query = new URL(request.url).searchParams;
   if (Number(request.headers.get('content-length')) > MAX_BODY_LENGTH) {
-    return new Response(null, { status: 204 });
+    return ok();
   }
 
   const body = request.method === 'POST' ? await request.text() : '';
-  if (body.length > MAX_BODY_LENGTH) return new Response(null, { status: 204 });
+  if (body.length > MAX_BODY_LENGTH) return ok();
 
   // Google tag may batch event-specific parameters as newline-separated form data.
   const events = body ? body.split(/\r?\n/).filter(Boolean) : [''];
@@ -41,32 +55,7 @@ async function collect(request: Request) {
     }
   }));
 
-  return new Response(null, { status: 204 });
-  } catch (error) {
-    // TEMPORARY DIAGNOSTIC (remove before final): surface the exact failure.
-    const details = {
-      handlerError: true,
-      node: process.version,
-      type: typeof error,
-      isErr: error instanceof Error,
-      name: error instanceof Error ? error.name : undefined,
-      message: error instanceof Error ? error.message : undefined,
-      text: error instanceof Error ? undefined : (() => {
-        try {
-          return JSON.stringify(error)?.slice(0, 400);
-        } catch {
-          return String(error);
-        }
-      })(),
-      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 8) : undefined,
-      url: typeof request?.url === 'string' ? request.url : null,
-      method: request?.method ?? null,
-    };
-    return new Response(JSON.stringify(details), {
-      status: 599,
-      headers: { 'content-type': 'application/json' },
-    });
-  }
+  return ok();
 }
 
 export const GET = collect;
