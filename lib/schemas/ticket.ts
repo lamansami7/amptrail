@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 export const ticketStatuses = ['draft', 'ready_for_review', 'submitted', 'approved', 'rejected', 'invoiced'] as const;
 
-const optionalText = (max: number) => z.string().trim().max(max).transform((value) => value || null);
+const optionalText = (max: number) =>
+  z
+    .union([z.string().trim().max(max), z.null(), z.undefined()])
+    .transform((value) => (value ? String(value).trim() || null : null));
 
 export const laborEntrySchema = z.object({
   worker_name: z.string().trim().min(1, 'Add a worker name or role.').max(160),

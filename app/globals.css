@@ -1,54 +1,82 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --color-ink: #1b2735;
-  --color-muted: #687584;
-  --color-canvas: #f7f6f2;
-  --color-paper: #ffffff;
-  --color-line: #e7e6e1;
-  --color-orange: #e76d32;
-  --color-orange-dark: #c85320;
-  --color-navy: #172535;
-  --color-navy-soft: #22364a;
-  --color-green: #377a61;
-  --shadow-card: 0 10px 30px rgba(25, 38, 51, 0.06);
-  --shadow-lift: 0 24px 60px rgba(21, 35, 50, 0.13);
-  --radius-2xl: 1.25rem;
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-brand-subtle: #eff6ff;
+  --color-brand-border: #bfdbfe;
+
+  --color-ink: #0f172a;
+  --color-ink-muted: #334155;
+  --color-muted: #64748b;
+  --color-muted-light: #94a3b8;
+
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f1f5f9;
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+
+  --color-navy: #0f172a;
+  --color-navy-soft: #1e293b;
+
+  --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.04), 0 1px 2px -1px rgb(15 23 42 / 0.03);
+  --shadow-card-hover: 0 10px 25px -5px rgb(15 23 42 / 0.08), 0 8px 10px -6px rgb(15 23 42 / 0.04);
+  --shadow-lift: 0 20px 30px -10px rgb(15 23 42 / 0.12), 0 10px 15px -5px rgb(15 23 42 / 0.04);
+
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
 }
 
 :root {
   color-scheme: light;
-  --amp-ink: #1b2735;
-  --amp-muted: #687584;
-  --amp-canvas: #f7f6f2;
-  --amp-line: #e7e6e1;
-  --amp-orange: #e76d32;
+  --amp-ink: #0f172a;
+  --amp-muted: #64748b;
+  --amp-canvas: #f8fafc;
+  --amp-line: #e2e8f0;
+  --amp-brand: #2563eb;
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 body {
-  background: var(--amp-canvas);
+  background-color: var(--amp-canvas);
   color: var(--amp-ink);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
 }
 button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
-::selection { background: #f8d8c9; color: #582510; }
+::selection { background: #dbeafe; color: #1e3a8a; }
 
 @layer components {
-  .field-label { @apply mb-1.5 block text-sm font-semibold text-ink; }
-  .field-control { @apply block w-full rounded-xl border border-line bg-white px-3.5 py-3 text-[15px] text-ink shadow-sm outline-none transition placeholder:text-slate-400 focus:border-orange focus:ring-4 focus:ring-orange/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400; }
-  .field-hint { @apply mt-1.5 text-xs leading-5 text-muted; }
-  .card { @apply rounded-2xl border border-line bg-white shadow-card; }
-  .eyebrow { @apply text-xs font-bold uppercase tracking-[0.14em] text-orange; }
+  .field-label {
+    @apply mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700;
+  }
+  .field-control {
+    @apply block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/10 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400;
+  }
+  .field-hint {
+    @apply mt-1.5 text-xs leading-5 text-slate-500;
+  }
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm transition;
+  }
+  .eyebrow {
+    @apply inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-blue-600;
+  }
 }
 
 @media print {
-  body { background: #fff !important; }
+  body { background: #fff !important; color: #000 !important; }
   .no-print { display: none !important; }
-  .print-page { max-width: none !important; padding: 0 !important; }
+  .print-page { max-width: none !important; padding: 0 !important; margin: 0 !important; }
 }

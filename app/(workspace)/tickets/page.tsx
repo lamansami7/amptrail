@@ -1,74 +1,337 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ClipboardList, Plus, Search } from 'lucide-react';
+import { Plus, Receipt, Search } from 'lucide-react';
 import { requireWorkspace } from '@/lib/data/workspace';
 import { PageHeader, DataSetupMessage, EmptyState } from '@/components/workspace/app-page';
 import { ButtonLink } from '@/components/ui/button';
 import { StatusBadge } from '@/components/workspace/status-badge';
-import { formatDate, formatCurrency, formatStatus } from '@/lib/utils';
+import { formatDate, formatCurrency } from '@/lib/utils';
 import { calculateTicketTotals } from '@/lib/tickets/totals';
 import { ticketStatusOptions } from '@/lib/tickets/status';
 
-export const metadata: Metadata = { title: 'Work tickets' };
-type Props = { searchParams: Promise<{ status?: string; q?: string }> };
+export const metadata: Metadata = { title: 'Work Tickets' };
+
+type Props = {
+  searchParams: Promise<{ status?: string; projectId?: string; q?: string }>;
+};
 
 export default async function TicketsPage({ searchParams }: Props) {
   const params = await searchParams;
   const { supabase, workspace } = await requireWorkspace();
-  const validStatus = ticketStatusOptions.find((status) => status.value === params.status)?.value;
-  let query = supabase.from('work_tickets').select('id, project_id, created_by, ticket_number, description, status, occurred_at, updated_at').eq('company_id', workspace.id).order('occurred_at', { ascending: false }).limit(100);
-  if (validStatus) query = query.eq('status', validStatus);
-  const { data: tickets, error } = await query;
-  if (error) return <><PageHeader title="Work tickets" description="Document extra work while the details are fresh." /><DataSetupMessage /></>;
 
-  const [{ data: projects, error: projectError }, { data: labor }, { data: materials }, { data: costs }] = await Promise.all([
-    supabase.from('projects').select('id, name, project_number, is_archived').eq('company_id', workspace.id).order('name'),
-    tickets?.length ? supabase.from('labor_entries').select('ticket_id, hours, rate').eq('company_id', workspace.id).in('ticket_id', tickets.map((ticket) => ticket.id)) : Promise.resolve({ data: [], error: null }),
-    tickets?.length ? supabase.from('material_entries').select('ticket_id, quantity, unit_cost').eq('company_id', workspace.id).in('ticket_id', tickets.map((ticket) => ticket.id)) : Promise.resolve({ data: [], error: null }),
-    tickets?.length ? supabase.from('ticket_costs').select('ticket_id, quantity, unit_cost').eq('company_id', workspace.id).in('ticket_id', tickets.map((ticket) => ticket.id)) : Promise.resolve({ data: [], error: null }),
-  ]);
-  if (projectError) return <><PageHeader title="Work tickets" /><DataSetupMessage /></>;
+  const validStatus = ticketStatusOptions.find((status) => status.value === params.status)?.value;
+  const filterProjectId = params.projectId;
+
+  let query = supabase
+    .from('work_tickets')
+    .select('id, project_id, created_by, ticket_number, description, location, gc_representative, status, occurred_at, updated_at')
+    .eq('company_id', workspace.id)
+    .order('occurred_at', { ascending: false })
+    .limit(100);
+
+  if (validStatus) query = query.eq('status', validStatus);
+  if (filterProjectId) query = query.eq('project_id', filterProjectId);
+
+  const { data: tickets, error } = await query;
+  if (error) {
+    return (
+      <>
+        <PageHeader title="Work Tickets" description="Document extra work while the details are fresh." />
+        <DataSetupMessage />
+      </>
+    );
+  }
+
+  // Fetch projects and all line item entries for calculation
+  const [{ data: projects, error: projectError }, { data: labor }, { data: materials }, { data: costs }] =
+    await Promise.all([
+      supabase
+        .from('projects')
+        .select('id, name, project_number, is_archived')
+        .eq('company_id', workspace.id)
+        .order('name'),
+      tickets?.length
+        ? supabase
+            .from('labor_entries')
+            .select('ticket_id, hours, rate')
+            .eq('company_id', workspace.id)
+            .in('ticket_id', tickets.map((ticket) => ticket.id))
+        : Promise.resolve({ data: [], error: null }),
+      tickets?.length
+        ? supabase
+            .from('material_entries')
+            .select('ticket_id, quantity, unit_cost')
+            .eq('company_id', workspace.id)
+            .in('ticket_id', tickets.map((ticket) => ticket.id))
+        : Promise.resolve({ data: [], error: null }),
+      tickets?.length
+        ? supabase
+            .from('ticket_costs')
+            .select('ticket_id, quantity, unit_cost')
+            .eq('company_id', workspace.id)
+            .in('ticket_id', tickets.map((ticket) => ticket.id))
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+  if (projectError) {
+    return (
+      <>
+        <PageHeader title="Work Tickets" />
+        <DataSetupMessage />
+      </>
+    );
+  }
+
   const projectMap = new Map((projects || []).map((project) => [project.id, project]));
   const totals = new Map<string, number>();
+
   for (const ticket of tickets || []) {
-    totals.set(ticket.id, calculateTicketTotals({
-      labor: (labor || []).filter((entry) => entry.ticket_id === ticket.id),
-      materials: (materials || []).filter((entry) => entry.ticket_id === ticket.id),
-      costs: (costs || []).filter((entry) => entry.ticket_id === ticket.id),
-    }).total);
+    totals.set(
+      ticket.id,
+      calculateTicketTotals({
+        labor: (labor || []).filter((entry) => entry.ticket_id === ticket.id).map((l) => ({ hours: Number(l.hours), rate: Number(l.rate) })),
+        materials: (materials || []).filter((entry) => entry.ticket_id === ticket.id).map((m) => ({ quantity: Number(m.quantity), unit_cost: Number(m.unit_cost) })),
+        costs: (costs || []).filter((entry) => entry.ticket_id === ticket.id).map((c) => ({ quantity: Number(c.quantity), unit_cost: Number(c.unit_cost) })),
+      }).total
+    );
   }
+
   const search = (params.q || '').trim().toLowerCase();
   const filtered = (tickets || []).filter((ticket) => {
     const project = projectMap.get(ticket.project_id);
-    return !search || ticket.ticket_number.toLowerCase().includes(search) || ticket.description.toLowerCase().includes(search) || (project?.name || '').toLowerCase().includes(search);
+    return (
+      !search ||
+      ticket.ticket_number.toLowerCase().includes(search) ||
+      ticket.description.toLowerCase().includes(search) ||
+      (ticket.location && ticket.location.toLowerCase().includes(search)) ||
+      (ticket.gc_representative && ticket.gc_representative.toLowerCase().includes(search)) ||
+      (project?.name || '').toLowerCase().includes(search) ||
+      (project?.project_number || '').toLowerCase().includes(search)
+    );
   });
+
   const firstActiveProject = projects?.find((project) => !project.is_archived)?.id;
-  const statusHref = (status?: string) => status ? `/tickets?status=${status}${params.q ? `&q=${encodeURIComponent(params.q)}` : ''}` : `/tickets${params.q ? `?q=${encodeURIComponent(params.q)}` : ''}`;
 
-  return <>
-    <PageHeader eyebrow="Field records" title="Work tickets" description="A clear history of extra work, with the details that help explain it." action={<ButtonLink href={firstActiveProject ? `/tickets/new?projectId=${firstActiveProject}` : '/tickets/new'}><Plus size={17} />Create work ticket</ButtonLink>} />
-    <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-      <nav aria-label="Filter tickets by status" className="flex gap-1 overflow-x-auto rounded-xl border border-line bg-white p-1">
-        <Link href={statusHref()} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${!validStatus ? 'bg-navy text-white' : 'text-muted hover:bg-slate-50'}`}>All</Link>
-        {ticketStatusOptions.map((status) => <Link key={status.value} href={statusHref(status.value)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${validStatus === status.value ? 'bg-navy text-white' : 'text-muted hover:bg-slate-50'}`}>{status.label}</Link>)}
-      </nav>
-      <form action="/tickets" className="relative w-full lg:max-w-xs"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input className="field-control min-h-10 py-2 pl-9 text-sm" type="search" name="q" defaultValue={params.q} placeholder="Search tickets or projects" aria-label="Search tickets or projects" />{validStatus && <input type="hidden" name="status" value={validStatus} />}</form>
+  const buildFilterUrl = (newStatus?: string, newProjectId?: string) => {
+    const p = new URLSearchParams();
+    const st = newStatus !== undefined ? newStatus : validStatus;
+    const pr = newProjectId !== undefined ? newProjectId : filterProjectId;
+    if (st) p.set('status', st);
+    if (pr) p.set('projectId', pr);
+    if (params.q) p.set('q', params.q);
+    const qs = p.toString();
+    return `/tickets${qs ? `?${qs}` : ''}`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="T&M Tracking Records"
+        title="Work Tickets"
+        description="Comprehensive field records capturing out-of-scope work, crew labor, material receipts, and photo proof."
+        action={
+          <ButtonLink
+            href={firstActiveProject ? `/tickets/new?projectId=${firstActiveProject}` : '/tickets/new'}
+          >
+            <Plus size={16} strokeWidth={2.5} />
+            <span>Create Work Ticket</span>
+          </ButtonLink>
+        }
+      />
+
+      {/* Filter Toolbar */}
+      <div className="flex flex-col gap-3.5 lg:flex-row lg:items-center lg:justify-between">
+        {/* Status Pills */}
+        <div className="flex items-center gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xs">
+          <Link
+            href={buildFilterUrl('')}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+              !validStatus ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            All
+          </Link>
+          {ticketStatusOptions.map((status) => (
+            <Link
+              key={status.value}
+              href={buildFilterUrl(status.value)}
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                validStatus === status.value
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {status.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Project Selector & Search Form */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* Project filter dropdown */}
+          <form action="/tickets" className="relative">
+            <select
+              name="projectId"
+              defaultValue={filterProjectId || ''}
+              className="field-control min-h-10 py-1.5 text-xs font-medium text-slate-700 sm:max-w-[200px]"
+              aria-label="Filter by project"
+              // On change submit automatically
+              onChange={(e) => {
+                e.currentTarget.form?.requestSubmit();
+              }}
+            >
+              <option value="">All Projects</option>
+              {(projects || []).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            {validStatus && <input type="hidden" name="status" value={validStatus} />}
+            {params.q && <input type="hidden" name="q" value={params.q} />}
+          </form>
+
+          {/* Search box */}
+          <form action="/tickets" className="relative w-full sm:max-w-xs">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              className="field-control min-h-10 py-1.5 pl-9 text-xs sm:text-sm"
+              type="search"
+              name="q"
+              defaultValue={params.q}
+              placeholder="Search tickets, work, or GC..."
+              aria-label="Search tickets"
+            />
+            {validStatus && <input type="hidden" name="status" value={validStatus} />}
+            {filterProjectId && <input type="hidden" name="projectId" value={filterProjectId} />}
+          </form>
+        </div>
+      </div>
+
+      {/* Main Tickets Content */}
+      {!tickets?.length && (validStatus || search || filterProjectId) ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
+          <p className="font-bold text-slate-900">No matching tickets found</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Try adjusting your search criteria, clearing project filter, or selecting another status tab.
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/tickets"
+              className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline"
+            >
+              Clear all filters
+            </Link>
+          </div>
+        </div>
+      ) : !tickets?.length ? (
+        <EmptyState
+          icon={<Receipt size={22} />}
+          title="No work tickets documented yet"
+          description="Whenever work is directed outside the original drawings or contract scope, create a work ticket to preserve your documentation trail."
+          action={
+            <ButtonLink
+              href={
+                firstActiveProject ? `/tickets/new?projectId=${firstActiveProject}` : '/projects/new'
+              }
+            >
+              <Plus size={16} />
+              {firstActiveProject ? 'Create First Ticket' : 'Create Project First'}
+            </ButtonLink>
+          }
+        />
+      ) : !filtered.length ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
+          <p className="font-bold text-slate-900">No matching tickets found</p>
+          <p className="mt-1 text-xs text-slate-500">No work tickets matched your search query.</p>
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <th className="py-3 px-4 font-bold sm:px-6">Ticket #</th>
+                  <th className="py-3 px-4 font-bold">Project</th>
+                  <th className="py-3 px-4 font-bold">Extra Work Description</th>
+                  <th className="py-3 px-4 font-bold">Status</th>
+                  <th className="py-3 px-4 text-right font-bold sm:px-6">Documented Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((ticket) => {
+                  const project = projectMap.get(ticket.project_id);
+                  const total = totals.get(ticket.id) || 0;
+                  return (
+                    <tr
+                      key={ticket.id}
+                      className="group transition hover:bg-slate-50/90"
+                    >
+                      <td className="py-4 px-4 sm:px-6 whitespace-nowrap">
+                        <Link href={`/tickets/${ticket.id}`} className="block">
+                          <span className="font-mono text-xs font-bold text-blue-600 group-hover:underline">
+                            {ticket.ticket_number}
+                          </span>
+                          <span className="block text-[11px] text-slate-400">
+                            {formatDate(ticket.occurred_at)}
+                          </span>
+                        </Link>
+                      </td>
+
+                      <td className="py-4 px-4">
+                        <Link href={`/projects/${ticket.project_id}`} className="block max-w-[200px]">
+                          <p className="truncate text-xs font-semibold text-slate-800 hover:text-blue-600">
+                            {project?.name || 'Project'}
+                          </p>
+                          {project?.project_number && (
+                            <p className="text-[11px] text-slate-400">{project.project_number}</p>
+                          )}
+                        </Link>
+                      </td>
+
+                      <td className="py-4 px-4">
+                        <Link href={`/tickets/${ticket.id}`} className="block max-w-lg">
+                          <p className="line-clamp-2 text-xs font-medium text-slate-800 leading-relaxed">
+                            {ticket.description}
+                          </p>
+                          {ticket.location && (
+                            <span className="mt-1 inline-block text-[11px] text-slate-400">
+                              Area: {ticket.location}
+                            </span>
+                          )}
+                        </Link>
+                      </td>
+
+                      <td className="py-4 px-4 whitespace-nowrap">
+                        <StatusBadge status={ticket.status} size="xs" />
+                      </td>
+
+                      <td className="py-4 px-4 text-right sm:px-6 whitespace-nowrap">
+                        <span className="font-mono text-xs font-bold text-slate-900 tabular-nums">
+                          {formatCurrency(total)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {tickets.length >= 100 && (
+            <p className="border-t border-slate-100 bg-slate-50 px-5 py-3 text-xs text-slate-500">
+              Showing the 100 most recent tickets. Use search and status filters to narrow results.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Entitlement Disclaimer */}
+      <div className="rounded-xl border border-slate-200/70 bg-slate-50/70 px-4 py-3 text-xs text-slate-500">
+        <p>
+          <strong>Notice:</strong> Work ticket statuses and documented totals are internal tracking records. They do not constitute verified customer approvals, change orders, or approved invoices.
+        </p>
+      </div>
     </div>
-
-    {!tickets?.length && (validStatus || search) ? <div className="rounded-2xl border border-line bg-white p-7 text-center"><p className="font-bold text-ink">No matching tickets</p><p className="mt-1 text-sm text-muted">Try a different search or status filter.</p></div> : !tickets?.length ? <EmptyState icon={<ClipboardList size={22} />} title="Your ticket list is clear" description="When a project needs work beyond its original scope, start a ticket and keep the record with the job." action={<ButtonLink href={firstActiveProject ? `/tickets/new?projectId=${firstActiveProject}` : '/projects/new'}><Plus size={16} />{firstActiveProject ? 'Create a work ticket' : 'Create a project first'}</ButtonLink>} /> : !filtered.length ? <div className="rounded-2xl border border-line bg-white p-7 text-center"><p className="font-bold text-ink">No matching tickets</p><p className="mt-1 text-sm text-muted">Try a different search or status filter.</p></div> : <div className="overflow-hidden rounded-2xl border border-line bg-white">
-      <div className="hidden grid-cols-[145px_minmax(0,1fr)_150px_120px_110px] gap-4 border-b border-line bg-slate-50 px-5 py-3 text-[10px] font-bold uppercase tracking-[0.1em] text-muted md:grid"><span>Ticket</span><span>Work record</span><span>Project</span><span>Status</span><span className="text-right">Total</span></div>
-      <div className="divide-y divide-line">{filtered.map((ticket) => {
-        const project = projectMap.get(ticket.project_id);
-        return <Link key={ticket.id} href={`/tickets/${ticket.id}`} className="grid gap-3 px-4 py-4 transition hover:bg-slate-50 sm:px-5 md:grid-cols-[145px_minmax(0,1fr)_150px_120px_110px] md:items-center md:gap-4">
-          <div className="flex items-center justify-between md:block"><span className="font-mono text-xs font-bold text-orange-dark">{ticket.ticket_number}</span><span className="text-xs text-muted md:mt-1 md:block">{formatDate(ticket.occurred_at)}</span></div>
-          <div className="min-w-0"><p className="line-clamp-2 text-sm font-semibold text-ink">{ticket.description}</p><p className="mt-1 text-xs text-muted md:hidden">{project?.name || 'Project'} · {formatStatus(ticket.status)}</p></div>
-          <div className="hidden min-w-0 md:block"><p className="truncate text-sm font-medium text-ink">{project?.name || 'Project unavailable'}</p><p className="truncate text-xs text-muted">{project?.project_number || ' '}</p></div>
-          <div className="hidden md:block"><StatusBadge status={ticket.status} /></div>
-          <div className="flex items-center justify-between border-t border-line pt-2 text-xs md:block md:border-0 md:pt-0 md:text-right"><span className="text-muted md:hidden">Documented total</span><span className="font-bold text-ink">{formatCurrency(totals.get(ticket.id) || 0)}</span></div>
-        </Link>;
-      })}</div>
-      {(tickets.length >= 100) && <p className="border-t border-line bg-slate-50 px-5 py-3 text-xs text-muted">Showing the 100 most recent tickets. Use search and status filters to narrow this list.</p>}
-    </div>}
-    <p className="mt-4 flex items-center gap-2 text-xs leading-5 text-muted"><span className="h-1.5 w-1.5 rounded-full bg-orange" />Statuses are for your tracking. They are not proof of customer approval or payment.</p>
-  </>;
+  );
 }
