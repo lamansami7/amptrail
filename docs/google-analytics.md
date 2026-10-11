@@ -2,6 +2,15 @@
 
 AmpTrail uses measurement ID `G-MBG985L02V`. No additional analytics package or environment variable is required.
 
+## Why not `@next/third-parties/google`
+
+The official `GoogleAnalytics` component was evaluated and is incompatible with this site's privacy requirement (no record IDs, project information, or raw page data may reach Google). In every published version — checked through `16.4.0` and `16.5.0-canary.8`, whose GA sources are identical — the component renders a fixed `gtag('config', gaId)` call and only accepts `gaId`, `nonce`, `debugMode`, and `dataLayerName`:
+
+- Hits go directly from the browser to `google-analytics.com`. There is no way to set `server_container_url`/`transport_url`, so the first-party allowlist relay below cannot be used.
+- Its automatic page views carry the raw `page_location` (real `/projects/<id>` and `/tickets/<id>` record IDs plus query strings), page title, and referrer, and its config cannot set `send_page_view: false`, disable Google signals, or filter Enhanced Measurement events.
+
+Mixing the component with the existing tracker would additionally duplicate page views. The root layout therefore implements the same official App Router pattern — `next/script` with `afterInteractive` plus manual `page_view` tracking on route changes — with the hardening this site requires.
+
 ## Installation and navigation
 
 - The existing root layout installs one Google tag loader and one initialization script using `next/script`, both with `afterInteractive` and stable IDs. Initialization has an additional singleton guard.
