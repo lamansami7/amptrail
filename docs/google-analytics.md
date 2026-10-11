@@ -18,16 +18,25 @@ Mixing the component with the existing tracker would additionally duplicate page
 - Repeated effects do not produce duplicate views. Moving between different projects/tickets still counts as separate views, even though their IDs are removed.
 - Query-only changes and fragment changes deliberately do not count as new pages. Unknown routes and the authentication callback are not measured.
 
+## Signup conversion (`sign_up`)
+
+AmpTrail tracks the GA4 recommended `sign_up` event at the **account created** stage:
+
+- **What counts as a completed signup:** `sign_up` is queued only after `supabase.auth.signUp()` resolves without error and returns a newly created user (`data.user.id` present and `data.user.identities` not empty). At this stage, Supabase has created the `auth.users` account and executed the `on_auth_user_created_amptrail` database trigger to provision the workspace and owner membership, whether Supabase is configured to issue an immediate session (`data.session` present) or require email verification (`data.session === null`).
+- **What is never counted:** Clicks on the signup button, client-side validation failures, failed Supabase `signUp` calls, obfuscated duplicate-registration responses for already-confirmed emails (`identities: []`), sign-in (`signInWithPassword`), and password recovery requests do not emit `sign_up`.
+- **Deduplication:** `createSignUpTracker` / `trackSignUp` guards in memory and records `amptrail:ga4:sign_up_tracked = '1'` in `sessionStorage`. Page refreshes, React rerenders, and repeated `/auth/callback` requests cannot produce duplicate `sign_up` events.
+- **Privacy & consent:** Only `{ method: 'email', page_path: '/signup', page_location: 'https://getamptrail.vercel.app/signup', page_title: 'AmpTrail · Sign up' }` leaves the browser and relay. Email addresses, passwords, names, company names, and Supabase user IDs are never included. Client-side cookie-consent preferences and Google Consent Mode (`gcs` analytics storage) are respected before queuing or forwarding hits.
+
 ## Privacy boundary
 
 Page names come exclusively from the static allowlist in `lib/analytics/google-analytics.ts`. Project and ticket detail/edit URLs become `/projects/[id]`, `/projects/[id]/edit`, `/tickets/[id]`, or `/tickets/[id]/edit`. No query strings, fragments, authentication tokens, document titles, browser referrers, user/account/workspace IDs, form values, customer details, record contents, or evidence URLs are intentionally included.
 
 The Google tag sends collection requests to the first-party `/api/analytics/g/collect` endpoint via `server_container_url` (and the compatibility `transport_url`). This endpoint **rebuilds** each hit from a strict allowlist before sending it to Google's fixed GA4 endpoint:
 
-- Only explicitly marked, sanitized manual `page_view` events are accepted. The internal marker is removed before forwarding.
+- Only explicitly marked, sanitized manual `page_view` (`ep.amptrail_page_view=1`) and `sign_up` (`ep.amptrail_sign_up=1`) events are accepted. The internal markers are removed before forwarding.
 - Automatic page views and Enhanced Measurement events (forms, clicks, downloads, searches, etc.) are dropped, even if enabled in the GA property's settings. They cannot cause duplicate views or forward private event parameters.
-- Page locations must already be exact generic route templates on the canonical site origin. Titles are reconstructed, not trusted from the request. Referrers can only be a previous generic AmpTrail page.
-- Only the tag's anonymous numeric client ID, numeric session/engagement metadata, and validated consent signals are preserved. All other event/user parameters are dropped. Google signals, ad personalization, and enhanced conversions are disabled.
+- Page locations must already be exact generic route templates on the canonical site origin. Titles are reconstructed, not trusted from the request. For `sign_up`, `dl`, `dt`, `ep.page_path`, and `ep.method` are always reconstructed as `/signup` and `email`. Referrers can only be a previous generic AmpTrail page.
+- Only the tag's anonymous numeric client ID, numeric session/engagement metadata, and validated consent signals are preserved. Hits with `gcs` denying `analytics_storage` (`G1x0`) are dropped. All other event/user parameters are dropped. Google signals, ad personalization, and enhanced conversions are disabled.
 - Browser cookies, browser request headers, and the visitor's IP address are not forwarded. As a result, client-IP geolocation and device/demographic/advertising attribution are deliberately not provided by this relay.
 
 This is basic page-view analytics, not business-event or user-level tracking. It does not read Supabase, authentication state, DOM content, forms, project/ticket records, or customer data. Analytics network failures are isolated from application workflows. Existing legal/consent requirements still need to be reviewed for the deployment; adding GA does not itself establish consent.

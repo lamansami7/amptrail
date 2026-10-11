@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { trackSignUp } from '@/lib/analytics/google-analytics';
 import { authCallbackUrl, describeAuthError } from '@/lib/auth/recovery';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
@@ -27,6 +28,7 @@ export function AuthForm({ mode, nextPath }: { mode: 'login' | 'signup'; nextPat
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (pending) return;
     setError('');
     setSuccess('');
     setFieldErrors({});
@@ -73,6 +75,8 @@ export function AuthForm({ mode, nextPath }: { mode: 'login' | 'signup'; nextPat
         });
         if (authError) throw authError;
         if (!data.user) throw new Error('Account creation failed. Please retry.');
+
+        trackSignUp({ data, error: authError });
 
         if (data.session) {
           router.replace('/dashboard');
