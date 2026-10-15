@@ -1,3 +1,4 @@
+import { openStatuses } from '@/lib/tickets/status';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
@@ -91,7 +92,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
   const statsFor = (projectId: string) => {
     const projectTickets = tickets.filter((ticket) => ticket.project_id === projectId);
     const open = projectTickets.filter((ticket) =>
-      ['draft', 'ready_for_review', 'submitted'].includes(ticket.status)
+      openStatuses.includes(ticket.status)
     ).length;
     return {
       ticketCount: projectTickets.length,
