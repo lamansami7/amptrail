@@ -381,7 +381,7 @@ export function DashboardPreview() {
           {[
             ['AT-26-0142', 'Metro Medical Center', 'ready_for_review', '$11,248.60'],
             ['AT-26-0141', 'Harborview Tech Campus', 'approved', '$8,410.00'],
-            ['AT-26-0139', 'Lakeside Distribution Hub', 'submitted', '$3,180.50'],
+            ['AT-26-0139', 'Lakeside Distribution Hub', 'ready_to_export', '$3,180.50'],
           ].map(([number, project, status, total]) => (
             <div
               key={number}

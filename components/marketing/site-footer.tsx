@@ -7,19 +7,19 @@ const columns = [
   {
     title: 'Product',
     links: [
-      { href: '/#workflow', label: 'How it works' },
-      { href: '/#product', label: 'Work tickets' },
-      { href: '/#product', label: 'Labor & materials' },
-      { href: '/#records', label: 'PDF records' },
+      { href: '/#how-it-works', label: 'How it works' },
+      { href: '/#demo', label: 'Interactive demo' },
+      { href: '/#features', label: 'Features' },
+      { href: '/#pricing', label: 'Pricing' },
       { href: '/#faq', label: 'FAQ' },
     ],
   },
   {
     title: 'Who it’s for',
     links: [
-      { href: '/#roles', label: 'Field foremen' },
+      { href: '/#roles', label: 'Foremen' },
       { href: '/#roles', label: 'Project managers' },
-      { href: '/#roles', label: 'Business owners' },
+      { href: '/#roles', label: 'Office administrators' },
     ],
   },
   {
