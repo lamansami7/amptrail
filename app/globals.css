@@ -377,6 +377,81 @@
   animation: amp-pop-in 200ms var(--ease-out-soft) both;
 }
 
+/* ---- Marketing motion ---- */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hero-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes amp-typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes amp-scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.hero-rise {
+  animation: hero-rise 640ms var(--ease-out-soft) both;
+  animation-delay: var(--d, 0ms);
+}
+.hero-slide {
+  animation: hero-slide-in 520ms var(--ease-out-soft) both;
+  animation-delay: var(--d, 0ms);
+}
+.typing-dot {
+  animation: amp-typing 1.2s ease-in-out infinite;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Subtle blueprint grid used behind marketing visuals. */
+.bg-blueprint {
+  background-image:
+    linear-gradient(to right, rgb(13 27 53 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(13 27 53 / 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Section headings share one rhythm across the marketing site. */
+.section-title {
+  font-size: clamp(1.625rem, 1.3rem + 1.1vw, 2.125rem);
+  font-weight: 650;
+  line-height: 1.14;
+  letter-spacing: -0.028em;
+  color: var(--color-ink);
+}
+
 /* ---- Print ---- */
 @media print {
   body {
