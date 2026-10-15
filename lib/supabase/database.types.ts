@@ -26,6 +26,10 @@ export type WorkTicketRow = {
   status: Database['public']['Enums']['ticket_status'];
   gc_representative: string | null;
   notes: string | null;
+  customer_approval: Database['public']['Enums']['customer_approval_status'];
+  customer_approval_note: string | null;
+  customer_approval_recorded_at: string | null;
+  customer_approval_recorded_by: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -108,7 +112,7 @@ export interface Database {
       work_tickets: {
         Row: WorkTicketRow;
         Insert: { id?: string; company_id: string; project_id: string; created_by?: string | null; ticket_number?: string; occurred_at?: string; location?: string | null; description: string; out_of_scope_reason?: string | null; status?: Database['public']['Enums']['ticket_status']; gc_representative?: string | null; notes?: string | null; created_at?: string; updated_at?: string };
-        Update: { project_id?: string; occurred_at?: string; location?: string | null; description?: string; out_of_scope_reason?: string | null; status?: Database['public']['Enums']['ticket_status']; gc_representative?: string | null; notes?: string | null; updated_at?: string };
+        Update: { project_id?: string; occurred_at?: string; location?: string | null; description?: string; out_of_scope_reason?: string | null; status?: Database['public']['Enums']['ticket_status']; gc_representative?: string | null; notes?: string | null; customer_approval?: Database['public']['Enums']['customer_approval_status']; customer_approval_note?: string | null; updated_at?: string };
         Relationships: [];
       };
       labor_entries: {
@@ -163,7 +167,8 @@ export interface Database {
       };
     };
     Enums: {
-      ticket_status: 'draft' | 'ready_for_review' | 'submitted' | 'approved' | 'rejected' | 'invoiced';
+      ticket_status: 'draft' | 'ready_for_review' | 'ready_to_export' | 'finalized' | 'submitted' | 'approved' | 'rejected' | 'invoiced';
+      customer_approval_status: 'not_requested' | 'pending' | 'approved' | 'rejected';
     };
     CompositeTypes: Record<string, never>;
   };
