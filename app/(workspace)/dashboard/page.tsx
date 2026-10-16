@@ -21,14 +21,13 @@ import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat';
 import { TableShell, Td, Th, Tr } from '@/components/ui/table';
 import { StatusBadge } from '@/components/workspace/status-badge';
-import { statusDotClass, ticketStatusOptions } from '@/lib/tickets/status';
+import { isLegacyStatus, openStatuses, statusDotClass, ticketStatusOptions } from '@/lib/tickets/status';
 import { calculateTicketTotals } from '@/lib/tickets/totals';
 import { formatCurrency, formatDate, formatRelative, pluralize } from '@/lib/utils';
 
 export const metadata: Metadata = { title: 'Overview' };
 
 // Shared status metadata keeps the dashboard consistent with every badge.
-const statusOrder = ticketStatusOptions;
 
 function greeting() {
   const hour = new Date().getHours();
@@ -107,11 +106,15 @@ export default async function DashboardPage() {
   const costRows = allCostsRes.data ?? [];
   const evidenceCount = evidenceRes.count ?? 0;
 
-  const counts = statusOrder.reduce<Record<string, number>>((accumulator, status) => {
+  const counts = ticketStatusOptions.reduce<Record<string, number>>((accumulator, status) => {
     accumulator[status.value] = allTickets.filter((ticket) => ticket.status === status.value).length;
     return accumulator;
   }, {});
-  const openCount = (counts.draft ?? 0) + (counts.ready_for_review ?? 0) + (counts.submitted ?? 0);
+  // Legacy statuses only appear when an older ticket still carries one.
+  const statusOrder = ticketStatusOptions.filter(
+    (status) => !isLegacyStatus(status.value) || (counts[status.value] ?? 0) > 0
+  );
+  const openCount = openStatuses.reduce((total, status) => total + (counts[status] ?? 0), 0);
 
   const workspaceTotals = calculateTicketTotals({
     labor: labourRows.map((row) => ({ hours: Number(row.hours), rate: Number(row.rate) })),
@@ -145,17 +148,26 @@ export default async function DashboardPage() {
   const attention = [
     counts.ready_for_review
       ? {
-          title: pluralize(counts.ready_for_review, 'ticket') + ' ready for review',
-          body: 'Verify the details, then submit to the general contractor.',
+          title: pluralize(counts.ready_for_review, 'ticket') + ' need review',
+          body: 'Check hours, materials and evidence, then mark each one ready to export.',
           href: '/tickets?status=ready_for_review',
           cta: 'Review tickets',
           tone: 'warning' as const,
         }
       : null,
+    counts.ready_to_export
+      ? {
+          title: pluralize(counts.ready_to_export, 'ticket') + ' ready to export',
+          body: 'Download the PDF or print it, then finalize the ticket once it has gone out.',
+          href: '/tickets?status=ready_to_export',
+          cta: 'Export tickets',
+          tone: 'info' as const,
+        }
+      : null,
     counts.draft
       ? {
-          title: pluralize(counts.draft, 'draft ticket') + ' not submitted',
-          body: 'Drafts are not visible to anyone else yet — finish them while details are fresh.',
+          title: pluralize(counts.draft, 'draft ticket') + ' still in draft',
+          body: 'Finish drafts while the details are fresh.',
           href: '/tickets?status=draft',
           cta: 'Finish drafts',
           tone: 'info' as const,
@@ -294,7 +306,7 @@ export default async function DashboardPage() {
         <StatCard
           label="Open tickets"
           value={openCount}
-          context={`${counts.draft ?? 0} draft · ${counts.ready_for_review ?? 0} ready · ${counts.submitted ?? 0} submitted`}
+          context={`${counts.draft ?? 0} draft · ${counts.ready_for_review ?? 0} need review · ${counts.ready_to_export ?? 0} ready to export`}
           tone={openCount > 0 ? 'warning' : 'neutral'}
           icon={<ClipboardCheck size={17} aria-hidden="true" />}
           footer={
@@ -576,9 +588,9 @@ export default async function DashboardPage() {
 
       <p className="rounded-xl border border-line bg-surface-2/70 px-4 py-3 text-[12px] leading-5 text-muted">
         <strong className="font-semibold text-body">Tracking disclaimer:</strong> totals are
-        calculated from the entries your team records, and statuses such as “Approved” are internal
-        workflow labels. They are not customer sign-off, a verified change order, or a payment
-        guarantee.
+        calculated from the entries your team records, and workflow statuses are internal labels.
+        They are not customer sign-off, a verified change order, or a payment guarantee. Customer
+        approval is recorded separately on each ticket.
       </p>
     </div>
   );

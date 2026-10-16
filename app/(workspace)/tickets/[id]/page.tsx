@@ -22,6 +22,7 @@ import { ButtonLink } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { TableShell, Td, Th, Tr } from '@/components/ui/table';
 import { StatusBadge } from '@/components/workspace/status-badge';
+import { CustomerApprovalBadge, CustomerApprovalCard } from '@/components/tickets/customer-approval-card';
 import { DeleteTicketButton } from '@/components/tickets/delete-ticket-button';
 import { DuplicateTicketButton } from '@/components/tickets/duplicate-ticket-button';
 import { TicketExport } from '@/components/tickets/ticket-export';
@@ -224,6 +225,9 @@ export default async function TicketDetailPage({ params }: Props) {
                   {ticket.ticket_number}
                 </span>
                 <StatusBadge status={ticket.status} />
+                {ticket.customer_approval && ticket.customer_approval !== 'not_requested' && (
+                  <CustomerApprovalBadge value={ticket.customer_approval} />
+                )}
               </div>
               <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
                 <span className="font-medium text-body">{project.name}</span>
@@ -468,6 +472,15 @@ export default async function TicketDetailPage({ params }: Props) {
               </p>
             </div>
           </Card>
+
+          <CustomerApprovalCard
+            ticketId={ticket.id}
+            approval={ticket.customer_approval ?? 'not_requested'}
+            note={ticket.customer_approval_note ?? null}
+            recordedAt={ticket.customer_approval_recorded_at ?? null}
+            isDraft={isDraft}
+            canEdit={canEdit}
+          />
 
           <Card flush>
             <CardHeader title="Jobsite context" bordered />

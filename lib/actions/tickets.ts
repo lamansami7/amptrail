@@ -7,6 +7,7 @@ import { requireWorkspace } from '@/lib/data/workspace';
 import { parseTicketFormData } from '@/lib/tickets/validation';
 import type { Json } from '@/lib/supabase/database.types';
 import { formatStatus } from '@/lib/utils';
+import { customerApprovalLabel, customerApprovalValues } from '@/lib/tickets/status';
 
 export type TicketActionState = { error?: string };
 const idSchema = z.string().uuid();
@@ -38,6 +39,9 @@ export async function saveTicketAction(_previous: TicketActionState, formData: F
       p_materials: parsed.data.materials as unknown as Json,
       p_costs: parsed.data.costs as unknown as Json,
     });
+    if (error?.message?.includes('Finalized tickets are locked')) {
+      return { error: 'This ticket is finalized and locked. Change its status to reopen it, then edit.' };
+    }
     if (error || !savedId) {
       console.error('Ticket save failed:', error?.code);
       return { error: 'The ticket could not be saved. Confirm that the project is active and that your database migration is current.' };
@@ -131,5 +135,69 @@ export async function duplicateTicketAction(formData: FormData) {
     redirect(`/tickets/${newId}/edit`);
   } catch (error) {
     if (error && typeof error === 'object' && 'digest' in error) throw error;
+  }
+}
+
+const approvalSchema = z.object({
+  ticketId: z.string().uuid(),
+  approval: z.enum(customerApprovalValues),
+  note: z.string().trim().max(1000, 'Keep the note under 1,000 characters.').optional(),
+});
+
+/**
+ * Records, explicitly, where a ticket stands with the customer. This is a manual
+ * record kept by your team: AmpTrail never contacts the customer, and exporting
+ * a PDF never changes this value. Who recorded it and when is stamped by the
+ * database, not supplied by the browser.
+ */
+export async function recordCustomerApprovalAction(input: {
+  ticketId: string;
+  approval: string;
+  note?: string;
+}): Promise<{ error?: string }> {
+  const parsed = approvalSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'That approval record is not valid.' };
+  const { ticketId, approval, note } = parsed.data;
+
+  try {
+    const { supabase, user, workspace } = await requireWorkspace();
+    const { data: ticket } = await supabase
+      .from('work_tickets')
+      .select('id, status, ticket_number, created_by')
+      .eq('id', ticketId)
+      .eq('company_id', workspace.id)
+      .maybeSingle();
+    if (!ticket) return { error: 'That ticket could not be found.' };
+    if (ticket.created_by !== user.id) return { error: 'Only the person who created this ticket can record customer approval.' };
+    if (ticket.status === 'draft' && approval !== 'not_requested') {
+      return { error: 'Move the ticket out of Draft before recording customer approval.' };
+    }
+
+    const { data: updated, error } = await supabase
+      .from('work_tickets')
+      .update({ customer_approval: approval as (typeof customerApprovalValues)[number], customer_approval_note: note || null })
+      .eq('id', ticket.id)
+      .eq('company_id', workspace.id)
+      .select('id')
+      .maybeSingle();
+    if (error || !updated) {
+      console.error('Customer approval save failed:', error?.code);
+      return { error: 'The approval record could not be saved. Confirm the latest database migration has been applied.' };
+    }
+
+    await supabase.from('activity_events').insert({
+      company_id: workspace.id,
+      actor_id: user.id,
+      event_type: 'ticket.customer_approval',
+      entity_type: 'work_ticket',
+      entity_id: ticket.id,
+      description: `Recorded customer approval on ${ticket.ticket_number}: ${customerApprovalLabel(approval)}`,
+    });
+    revalidatePath(`/tickets/${ticket.id}`);
+    revalidatePath('/tickets');
+    revalidatePath('/activity');
+    return {};
+  } catch {
+    return { error: 'The approval record could not be saved. Please try again.' };
   }
 }

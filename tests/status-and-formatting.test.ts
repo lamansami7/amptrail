@@ -10,7 +10,12 @@ import {
   initials,
   pluralize,
 } from '@/lib/utils';
-import { statusTone, ticketStatusMeta, ticketStatusOptions } from '@/lib/tickets/status';
+import {
+  statusTone,
+  ticketStatusMeta,
+  ticketStatusOptions,
+  ticketWorkflowOptions,
+} from '@/lib/tickets/status';
 
 describe('status and utility formatting', () => {
   it('formats status values into readable title-cased labels', () => {
@@ -26,18 +31,22 @@ describe('status and utility formatting', () => {
     const values = ticketStatusOptions.map((o) => o.value);
     expect(values).toContain('draft');
     expect(values).toContain('ready_for_review');
+    expect(values).toContain('ready_to_export');
+    expect(values).toContain('finalized');
     expect(values).toContain('submitted');
     expect(values).toContain('approved');
     expect(values).toContain('rejected');
     expect(values).toContain('invoiced');
   });
 
-  it('assigns a distinct, meaningful tone to every status', () => {
-    const tones = ticketStatusOptions.map((option) => statusTone(option.value));
-    expect(new Set(tones).size).toBe(ticketStatusOptions.length);
+  it('assigns a distinct, meaningful tone to every workflow status', () => {
+    const tones = ticketWorkflowOptions.map((option) => statusTone(option.value));
+    expect(new Set(tones).size).toBe(ticketWorkflowOptions.length);
+    expect(statusTone('finalized')).toBe('success');
+    expect(statusTone('ready_to_export')).toBe('brand');
+    expect(statusTone('ready_for_review')).toBe('warning');
     expect(statusTone('approved')).toBe('success');
     expect(statusTone('rejected')).toBe('danger');
-    expect(statusTone('ready_for_review')).toBe('warning');
     expect(statusTone('submitted')).toBe('brand');
     // Unknown statuses must not throw or lose meaning.
     expect(statusTone('mystery')).toBe('neutral');

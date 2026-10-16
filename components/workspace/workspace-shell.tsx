@@ -7,6 +7,8 @@ import {
   ChevronRight,
   CircleHelp,
   FolderKanban,
+  History,
+  Inbox,
   LayoutDashboard,
   LogOut,
   Menu as MenuIcon,
@@ -16,6 +18,7 @@ import {
   ShieldCheck,
   Camera,
   UserRound,
+  UsersRound,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -24,13 +27,19 @@ import { cn, initials } from '@/lib/utils';
 import { Menu } from '@/components/ui/menu';
 import { useSignOut } from './sign-out-button';
 
-type NavItem = { href: string; label: string; icon: LucideIcon; shortLabel?: string };
+type NavItem = { href: string; label: string; icon: LucideIcon; shortLabel?: string; badge?: string };
 
 const primaryNav: NavItem[] = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/tickets', label: 'Work tickets', icon: ReceiptText, shortLabel: 'Tickets' },
   { href: '/evidence', label: 'Evidence', icon: Camera },
+];
+
+const secondaryNav: NavItem[] = [
+  { href: '/inbox', label: 'Inbox', icon: Inbox, badge: 'Soon' },
+  { href: '/activity', label: 'Activity', icon: History },
+  { href: '/team', label: 'Team', icon: UsersRound },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -42,6 +51,9 @@ function getBreadcrumbs(pathname: string): Array<{ label: string; href?: string 
   if (pathname === '/dashboard') return [{ label: 'Overview' }];
   if (pathname === '/settings') return [{ label: 'Settings' }];
   if (pathname === '/evidence') return [{ label: 'Evidence' }];
+  if (pathname === '/inbox') return [{ label: 'Inbox' }];
+  if (pathname === '/activity') return [{ label: 'Activity' }];
+  if (pathname === '/team') return [{ label: 'Team' }];
   if (pathname === '/projects') return [{ label: 'Projects' }];
   if (pathname === '/projects/new') return [{ label: 'Projects', href: '/projects' }, { label: 'New project' }];
   if (pathname.startsWith('/projects/') && pathname.endsWith('/edit')) {
@@ -160,40 +172,59 @@ function SidebarNav({
   idPrefix?: string;
 }) {
   return (
-    <nav aria-label="Primary" className="space-y-0.5">
-      {primaryNav.map((item) => {
-        const active = isActive(pathname, item.href);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            id={`${idPrefix}-${item.href}`}
-            href={item.href}
-            onClick={onNavigate}
-            aria-current={active ? 'page' : undefined}
-            className={cn(
-              'group relative flex min-h-10 items-center gap-3 rounded-lg pl-3 pr-2.5 text-[13.5px] font-medium transition-colors duration-150',
-              active
-                ? 'bg-brand-50 font-semibold text-brand-800'
-                : 'text-body hover:bg-surface-3 hover:text-ink'
-            )}
-          >
-            {active && (
-              <span
-                aria-hidden="true"
-                className="absolute left-0 top-1/2 h-5 w-[2.5px] -translate-y-1/2 rounded-full bg-brand-600"
-              />
-            )}
-            <Icon
-              size={17}
-              strokeWidth={active ? 2.25 : 1.9}
-              className={cn('shrink-0', active ? 'text-brand-600' : 'text-subtle group-hover:text-body')}
-              aria-hidden="true"
-            />
-            <span className="truncate">{item.label}</span>
-          </Link>
-        );
-      })}
+    <nav aria-label="Primary" className="space-y-5">
+      {[
+        { label: null, items: primaryNav },
+        { label: 'Office', items: secondaryNav },
+      ].map((group) => (
+        <div key={group.label ?? 'main'}>
+          {group.label && (
+            <p className="mb-1.5 px-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-subtle">
+              {group.label}
+            </p>
+          )}
+          <div className="space-y-0.5">
+            {group.items.map((item) => {
+              const active = isActive(pathname, item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  id={`${idPrefix}-${item.href}`}
+                  href={item.href}
+                  onClick={onNavigate}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    'group relative flex min-h-10 items-center gap-3 rounded-lg pl-3 pr-2.5 text-[13.5px] font-medium transition-colors duration-150',
+                    active
+                      ? 'bg-brand-50 font-semibold text-brand-800'
+                      : 'text-body hover:bg-surface-3 hover:text-ink'
+                  )}
+                >
+                  {active && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-0 top-1/2 h-5 w-[2.5px] -translate-y-1/2 rounded-full bg-brand-600"
+                    />
+                  )}
+                  <Icon
+                    size={17}
+                    strokeWidth={active ? 2.25 : 1.9}
+                    className={cn('shrink-0', active ? 'text-brand-600' : 'text-subtle group-hover:text-body')}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate">{item.label}</span>
+                  {item.badge && (
+                    <span className="ml-auto rounded-full bg-surface-3 px-1.5 py-0.5 text-[10px] font-semibold text-subtle">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </nav>
   );
 }

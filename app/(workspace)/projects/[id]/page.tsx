@@ -1,3 +1,4 @@
+import { openStatuses } from '@/lib/tickets/status';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -139,7 +140,7 @@ export default async function ProjectDetailPage({ params }: Props) {
   });
 
   const openTickets = tickets.filter((ticket) =>
-    ['draft', 'ready_for_review', 'submitted'].includes(ticket.status)
+    openStatuses.includes(ticket.status)
   ).length;
 
   const evidenceFiles = evidenceRes.data ?? [];

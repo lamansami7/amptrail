@@ -10,7 +10,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { saveTicketAction, type TicketActionState } from '@/lib/actions/tickets';
 import { calculateTicketTotals, costLineTotal, laborLineTotal } from '@/lib/tickets/totals';
 import { formatCurrency, formatDateTimeLocal } from '@/lib/utils';
-import { ticketStatusOptions } from '@/lib/tickets/status';
+import { selectableStatuses } from '@/lib/tickets/status';
 import { cn } from '@/lib/utils';
 
 type LaborDraft = { key: string; worker_name: string; hours: string; rate: string };
@@ -417,6 +417,15 @@ export function TicketEditor({
         ))}
       </nav>
 
+      {ticket?.status === 'finalized' && (
+        <div className="mb-5">
+          <Alert tone="info" title="This ticket is finalized and locked">
+            Changes are blocked until you move it out of Finalized. Choose another status below and
+            save to reopen it; the change is recorded in the activity history.
+          </Alert>
+        </div>
+      )}
+
       {state.error && (
         <div ref={errorRef} tabIndex={-1} className="mb-5 outline-none">
           <Alert tone="danger" role="alert" title="This ticket was not saved">
@@ -543,11 +552,11 @@ export function TicketEditor({
               <Field
                 id={`${uid}-status`}
                 label="Tracking status"
-                hint="Your team’s internal workflow label."
+                hint="Internal workflow only. Customer approval is recorded separately on the ticket."
               >
                 {(props) => (
                   <Select {...props} name="status" defaultValue={ticket?.status ?? 'draft'}>
-                    {ticketStatusOptions.map((status) => (
+                    {selectableStatuses(ticket?.status).map((status) => (
                       <option key={status.value} value={status.value}>
                         {status.label}
                       </option>

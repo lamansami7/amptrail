@@ -8,11 +8,11 @@ import { ButtonLink } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
-  { href: '#workflow', label: 'How it works' },
-  { href: '#product', label: 'Product' },
-  { href: '#records', label: 'PDF records' },
-  { href: '#roles', label: 'Field & office' },
-  { href: '#faq', label: 'FAQ' },
+  { href: '/#how-it-works', label: 'How it works' },
+  { href: '/#demo', label: 'Demo' },
+  { href: '/#features', label: 'Features' },
+  { href: '/#pricing', label: 'Pricing' },
+  { href: '/#faq', label: 'FAQ' },
 ];
 
 export function SiteHeader() {
@@ -93,8 +93,8 @@ export function SiteHeader() {
         />
         <div
           className={cn(
-            'absolute inset-x-0 top-0 rounded-b-2xl border-b border-line bg-surface shadow-lg transition-transform duration-250',
-            open ? 'translate-y-0' : '-translate-y-full'
+            'absolute inset-x-0 top-0 rounded-b-2xl border-b border-line bg-surface transition-[transform,box-shadow] duration-250',
+            open ? 'translate-y-0 shadow-lg' : '-translate-y-full shadow-none'
           )}
         >
           <div className="flex h-16 items-center justify-between px-4">
@@ -141,7 +141,7 @@ export function SiteHeader() {
               Log in
             </ButtonLink>
             <p className="pt-1 text-center text-[12px] text-muted">
-              Free to start · No credit card required
+              No credit card required
             </p>
           </div>
         </div>

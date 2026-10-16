@@ -1,6 +1,16 @@
 import { z } from 'zod';
 
-export const ticketStatuses = ['draft', 'ready_for_review', 'submitted', 'approved', 'rejected', 'invoiced'] as const;
+export const ticketStatuses = [
+  'draft',
+  'ready_for_review',
+  'ready_to_export',
+  'finalized',
+  // Legacy values stay accepted so existing tickets can still be saved.
+  'submitted',
+  'approved',
+  'rejected',
+  'invoiced',
+] as const;
 
 const optionalText = (max: number) =>
   z

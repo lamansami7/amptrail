@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from '@/lib/supabase/database.types';
 import { getSupabaseConfig } from '@/lib/supabase/config';
 
-const protectedPrefixes = ['/dashboard', '/projects', '/tickets', '/evidence', '/settings'];
+const protectedPrefixes = ['/dashboard', '/projects', '/tickets', '/evidence', '/inbox', '/activity', '/team', '/settings'];
 
 export async function proxy(request: NextRequest) {
   const isProtected = protectedPrefixes.some((prefix) => request.nextUrl.pathname === prefix || request.nextUrl.pathname.startsWith(`${prefix}/`));
@@ -48,5 +48,14 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/projects/:path*', '/tickets/:path*', '/evidence/:path*', '/settings/:path*'],
+  matcher: [
+    '/dashboard/:path*',
+    '/projects/:path*',
+    '/tickets/:path*',
+    '/evidence/:path*',
+    '/inbox/:path*',
+    '/activity/:path*',
+    '/team/:path*',
+    '/settings/:path*',
+  ],
 };
