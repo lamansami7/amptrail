@@ -246,7 +246,8 @@ export function EvidencePanel({
                   type="button"
                   onClick={() => inputRef.current?.click()}
                   className="group relative flex h-32 w-full items-center justify-center overflow-hidden rounded-lg border border-line bg-surface transition-colors duration-150 hover:border-brand-300 sm:h-36"
-                  aria-label={previewUrl ? 'Take a new photo' : 'Take a photo'}
+                  // With no preview the visible text already names the button; a different aria-label would not match it.
+                  aria-label={previewUrl ? 'Take a new photo' : undefined}
                 >
                   {previewUrl ? (
                     <img

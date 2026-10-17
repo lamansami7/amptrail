@@ -9,6 +9,7 @@ import {
   ClipboardList,
   FileDown,
   FolderKanban,
+  History,
   Inbox,
   Mic,
   Package,
@@ -161,9 +162,21 @@ const features: {
     status: 'available',
   },
   {
+    icon: Inbox,
+    title: 'Field-note inbox',
+    body: 'Log what the crew reported, with photos. The office assigns a project, flags anything missing, and turns the note into a ticket. The original wording is never edited.',
+    status: 'available',
+  },
+  {
+    icon: History,
+    title: 'Activity history',
+    body: 'A running record of notes logged, tickets created and approvals recorded, so you can see what changed and when.',
+    status: 'available',
+  },
+  {
     icon: MessageSquareText,
     title: 'Text and photo intake',
-    body: 'Crews text a company number with notes and photos; submissions land in an office inbox for review.',
+    body: 'Crews text a company number and their notes and photos arrive in the inbox automatically. Today the inbox is filled by your team typing notes in.',
     status: 'development',
   },
   {
@@ -238,7 +251,7 @@ const faqs = [
   {
     question: 'Can crews submit photos and voice notes?',
     answer:
-      'Photos can be uploaded in the web app today (JPEG, PNG or WebP up to 10 MB each). Photos by text message are in development. Voice notes are planned: standard SMS cannot carry audio, so they will depend on messaging provider support, with a web upload fallback.',
+      'Photos can be uploaded in the web app today (JPEG, PNG or WebP up to 10 MB each), either on a ticket or on a field note in the office inbox. Photos arriving by text message are in development. Voice notes are planned: standard SMS cannot carry audio, so they will depend on messaging provider support, with a web upload fallback.',
   },
   {
     question: 'How are T&M tickets created?',
