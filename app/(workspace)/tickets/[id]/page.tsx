@@ -221,9 +221,9 @@ export default async function TicketDetailPage({ params }: Props) {
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
-                <span className="font-mono text-[1.375rem] font-semibold tracking-[-0.01em] text-ink">
+                <h1 className="font-mono text-[1.375rem] font-semibold tracking-[-0.01em] text-ink">
                   {ticket.ticket_number}
-                </span>
+                </h1>
                 <StatusBadge status={ticket.status} />
                 {ticket.customer_approval && ticket.customer_approval !== 'not_requested' && (
                   <CustomerApprovalBadge value={ticket.customer_approval} />
@@ -440,7 +440,7 @@ export default async function TicketDetailPage({ params }: Props) {
         </div>
 
         {/* Side rail */}
-        <aside className="space-y-6 lg:sticky lg:top-20">
+        <aside aria-label="Ticket summary" className="space-y-6 lg:sticky lg:top-20">
           <Card flush>
             <div className="p-5">
               <h2 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-subtle">

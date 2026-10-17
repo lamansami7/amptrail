@@ -13,6 +13,36 @@ export type ProjectRow = {
   updated_at: string;
 };
 
+export type FieldSubmissionRow = {
+  id: string;
+  company_id: string;
+  submitted_by: string | null;
+  source: Database['public']['Enums']['submission_source'];
+  sender_name: string | null;
+  body: string;
+  received_at: string;
+  project_id: string | null;
+  status: Database['public']['Enums']['submission_status'];
+  missing_details: string | null;
+  ticket_id: string | null;
+  handled_by: string | null;
+  handled_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SubmissionAttachmentRow = {
+  id: string;
+  company_id: string;
+  submission_id: string;
+  uploaded_by: string | null;
+  storage_path: string;
+  original_filename: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
 export type WorkTicketRow = {
   id: string;
   company_id: string;
@@ -139,6 +169,18 @@ export interface Database {
         Update: { caption?: string | null; notes?: string | null };
         Relationships: [];
       };
+      field_submissions: {
+        Row: FieldSubmissionRow;
+        Insert: { id?: string; company_id: string; submitted_by?: string | null; source?: Database['public']['Enums']['submission_source']; sender_name?: string | null; body: string; project_id?: string | null; status?: Database['public']['Enums']['submission_status'] };
+        Update: { project_id?: string | null; status?: Database['public']['Enums']['submission_status']; missing_details?: string | null; ticket_id?: string | null };
+        Relationships: [];
+      };
+      submission_attachments: {
+        Row: SubmissionAttachmentRow;
+        Insert: { id?: string; company_id: string; submission_id: string; uploaded_by?: string | null; storage_path: string; original_filename: string; mime_type: string; size_bytes: number };
+        Update: never;
+        Relationships: [];
+      };
       activity_events: {
         Row: { id: string; company_id: string; actor_id: string | null; event_type: string; entity_type: string; entity_id: string | null; description: string; created_at: string };
         Insert: { id?: string; company_id: string; actor_id?: string | null; event_type: string; entity_type: string; entity_id?: string | null; description: string; created_at?: string };
@@ -169,6 +211,8 @@ export interface Database {
     Enums: {
       ticket_status: 'draft' | 'ready_for_review' | 'ready_to_export' | 'finalized' | 'submitted' | 'approved' | 'rejected' | 'invoiced';
       customer_approval_status: 'not_requested' | 'pending' | 'approved' | 'rejected';
+      submission_status: 'new' | 'needs_project' | 'missing_details' | 'ready_for_review' | 'processed' | 'dismissed';
+      submission_source: 'web' | 'sms' | 'mms';
     };
     CompositeTypes: Record<string, never>;
   };

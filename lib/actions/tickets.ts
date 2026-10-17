@@ -8,6 +8,7 @@ import { parseTicketFormData } from '@/lib/tickets/validation';
 import type { Json } from '@/lib/supabase/database.types';
 import { formatStatus } from '@/lib/utils';
 import { customerApprovalLabel, customerApprovalValues } from '@/lib/tickets/status';
+import { linkSubmissionToTicket } from '@/lib/actions/inbox';
 
 export type TicketActionState = { error?: string };
 const idSchema = z.string().uuid();
@@ -55,6 +56,10 @@ export async function saveTicketAction(_previous: TicketActionState, formData: F
       ? statusChanged ? `Updated ${label}; tracking status set to ${formatStatus(parsed.data.status)}` : `Updated ${label}`
       : `Created ${label}`;
     await supabase.from('activity_events').insert({ company_id: workspace.id, actor_id: user.id, event_type: eventType, entity_type: 'work_ticket', entity_id: savedId, description });
+
+    // A ticket created from an inbox note closes that note. Best effort: the ticket is already saved.
+    const submissionId = String(formData.get('submission_id') || '').trim();
+    if (!ticketId?.success && submissionId) await linkSubmissionToTicket(submissionId, savedId);
 
     revalidatePath('/tickets');
     revalidatePath('/dashboard');

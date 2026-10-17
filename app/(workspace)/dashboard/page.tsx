@@ -145,7 +145,25 @@ export default async function DashboardPage() {
   const hasContent = allProjects.length > 0 || allTickets.length > 0;
   const totalTickets = allTickets.length;
 
+  // Notes waiting in the inbox. A failed query (for example before the inbox migration is applied)
+  // simply hides this item instead of breaking the dashboard.
+  const inboxRes = await supabase
+    .from('field_submissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('company_id', workspace.id)
+    .in('status', ['new', 'needs_project', 'missing_details', 'ready_for_review']);
+  const inboxOpen = inboxRes.error ? 0 : (inboxRes.count ?? 0);
+
   const attention = [
+    inboxOpen
+      ? {
+          title: pluralize(inboxOpen, 'field note') + ' waiting in the inbox',
+          body: 'Assign a project, ask for anything missing, then turn each note into a ticket.',
+          href: '/inbox',
+          cta: 'Open inbox',
+          tone: 'warning' as const,
+        }
+      : null,
     counts.ready_for_review
       ? {
           title: pluralize(counts.ready_for_review, 'ticket') + ' need review',

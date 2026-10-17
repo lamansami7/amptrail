@@ -11,10 +11,10 @@ import { requireWorkspace } from '@/lib/data/workspace';
 
 export const metadata: Metadata = { title: 'New work ticket' };
 
-type Props = { searchParams: Promise<{ projectId?: string }> };
+type Props = { searchParams: Promise<{ projectId?: string; submission?: string }> };
 
 export default async function NewTicketPage({ searchParams }: Props) {
-  const { projectId } = await searchParams;
+  const { projectId, submission: submissionParam } = await searchParams;
   const { supabase, workspace } = await requireWorkspace();
 
   const { data: projects, error } = await supabase
@@ -56,8 +56,23 @@ export default async function NewTicketPage({ searchParams }: Props) {
     );
   }
 
-  const preferredProject = projects.some((project) => project.id === projectId)
-    ? projectId
+  // Starting from an inbox note: use its project and original wording as an editable starting point.
+  const submissionId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(submissionParam ?? '')
+    ? submissionParam
+    : undefined;
+  const { data: source } = submissionId
+    ? await supabase
+        .from('field_submissions')
+        .select('id, body, project_id, status, sender_name')
+        .eq('id', submissionId)
+        .eq('company_id', workspace.id)
+        .maybeSingle()
+    : { data: null };
+  const sourceUsable = source && source.status !== 'processed';
+
+  const wantedProject = sourceUsable && source.project_id ? source.project_id : projectId;
+  const preferredProject = projects.some((project) => project.id === wantedProject)
+    ? wantedProject
     : undefined;
 
   return (
@@ -76,6 +91,21 @@ export default async function NewTicketPage({ searchParams }: Props) {
         description="Document what happened, where, and what it took. You can attach photos and export a PDF as soon as it is saved."
       />
 
+      {sourceUsable ? (
+        <Alert tone="info" title="Started from an inbox note">
+          The note’s original wording is below as a starting description. Edit it, then add hours and materials
+          yourself. Saving closes the note and links it to this ticket.{' '}
+          <Link href={`/inbox/${source.id}`} className="link font-semibold">
+            View the note and its photos
+          </Link>
+          .
+        </Alert>
+      ) : submissionId ? (
+        <Alert tone="warning" title="That inbox note is not available">
+          It may already be processed, or you may not have access. You can still create a ticket from scratch.
+        </Alert>
+      ) : null}
+
       <Alert tone="info">
         Totals recalculate as you type, and nothing is saved until you choose{' '}
         <strong className="font-semibold">Create work ticket</strong>.
@@ -83,7 +113,12 @@ export default async function NewTicketPage({ searchParams }: Props) {
 
       <TicketEditor
         projects={projects}
-        ticket={preferredProject ? { project_id: preferredProject } : undefined}
+        ticket={
+          preferredProject || sourceUsable
+            ? { project_id: preferredProject, description: sourceUsable ? source.body : undefined }
+            : undefined
+        }
+        submissionId={sourceUsable ? source.id : undefined}
       />
     </div>
   );
