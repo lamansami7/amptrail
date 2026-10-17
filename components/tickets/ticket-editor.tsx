@@ -262,9 +262,12 @@ export function TicketEditor({
   labor: initialLabor = [],
   materials: initialMaterials = [],
   costs: initialCosts = [],
+  submissionId,
 }: {
   projects: Array<{ id: string; name: string; project_number: string | null }>;
   ticket?: TicketEditorData;
+  /** When set, saving this new ticket also closes the inbox submission it came from. */
+  submissionId?: string;
   labor?: Array<{ worker_name: string; hours: number; rate: number }>;
   materials?: Array<{ description: string; quantity: number; unit_cost: number }>;
   costs?: Array<{ description: string; quantity: number; unit_cost: number }>;
@@ -387,7 +390,7 @@ export function TicketEditor({
     })),
   };
 
-  const saveLabel = ticket ? 'Save changes' : 'Create work ticket';
+  const saveLabel = ticket?.id ? 'Save changes' : 'Create work ticket';
   const cancelHref = ticket?.id ? `/tickets/${ticket.id}` : '/tickets';
 
   return (
@@ -398,6 +401,7 @@ export function TicketEditor({
       className="pb-40 lg:pb-0"
     >
       {ticket?.id && <input type="hidden" name="id" value={ticket.id} />}
+      {submissionId && !ticket?.id && <input type="hidden" name="submission_id" value={submissionId} />}
       <input type="hidden" name="occurred_at" value={occurredAtIso} />
       <input type="hidden" name="labor" value={JSON.stringify(payload.labor)} />
       <input type="hidden" name="materials" value={JSON.stringify(payload.materials)} />
@@ -672,7 +676,9 @@ export function TicketEditor({
                             inputMode="decimal"
                             min="0.01"
                             max="10000"
-                            step="0.25"
+                            // "any" because browsers measure valid steps from `min`: with min 0.01 and
+                            // step 0.25, a plain "4" hours was rejected as invalid.
+                            step="any"
                             value={row.hours}
                             onChange={(event) =>
                               setLaborRows((current) =>
@@ -813,7 +819,7 @@ export function TicketEditor({
         </div>
 
         {/* -------- Sticky summary column -------- */}
-        <aside className="lg:sticky lg:top-20 lg:order-none">
+        <aside aria-label="Ticket review" className="lg:sticky lg:top-20 lg:order-none">
           <Card flush id="review" className="scroll-mt-24">
             <CardHeader title="Review" description="Totals update as you type" bordered />
             <dl className="divide-y divide-line px-5">
@@ -880,7 +886,7 @@ export function TicketEditor({
             </p>
           </div>
           <Button type="submit" size="md" loading={pending} className="min-w-32">
-            {pending ? 'Saving…' : ticket ? 'Save' : 'Create'}
+            {pending ? 'Saving…' : ticket?.id ? 'Save' : 'Create'}
           </Button>
         </div>
       </div>

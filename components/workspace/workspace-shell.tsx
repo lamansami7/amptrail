@@ -37,7 +37,7 @@ const primaryNav: NavItem[] = [
 ];
 
 const secondaryNav: NavItem[] = [
-  { href: '/inbox', label: 'Inbox', icon: Inbox, badge: 'Soon' },
+  { href: '/inbox', label: 'Inbox', icon: Inbox },
   { href: '/activity', label: 'Activity', icon: History },
   { href: '/team', label: 'Team', icon: UsersRound },
 ];
@@ -52,6 +52,8 @@ function getBreadcrumbs(pathname: string): Array<{ label: string; href?: string 
   if (pathname === '/settings') return [{ label: 'Settings' }];
   if (pathname === '/evidence') return [{ label: 'Evidence' }];
   if (pathname === '/inbox') return [{ label: 'Inbox' }];
+  if (pathname === '/inbox/new') return [{ label: 'Inbox', href: '/inbox' }, { label: 'Log a field note' }];
+  if (pathname.startsWith('/inbox/')) return [{ label: 'Inbox', href: '/inbox' }, { label: 'Field note' }];
   if (pathname === '/activity') return [{ label: 'Activity' }];
   if (pathname === '/team') return [{ label: 'Team' }];
   if (pathname === '/projects') return [{ label: 'Projects' }];
@@ -273,7 +275,7 @@ export function WorkspaceShell({
       </a>
 
       {/* ---------------- Desktop sidebar ---------------- */}
-      <aside className="no-print sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface lg:flex">
+      <aside aria-label="Workspace" className="no-print sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface lg:flex">
         <div className="flex h-14 items-center border-b border-line px-4">
           <Brand href="/dashboard" size="md" />
         </div>
