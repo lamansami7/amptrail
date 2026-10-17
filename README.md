@@ -63,7 +63,7 @@ Open <http://localhost:3000>. If Supabase keys are absent, the public website re
 
 1. Create a Supabase project and copy its **Project URL** plus a browser-safe **publishable key** (or legacy **anon key**) from Project Settings → API.
 2. Add the URL/key to `.env.local` for local use and to Vercel for each relevant environment (Preview and Production separately). Redeploy after changing Vercel environment variables.
-3. Apply `supabase/migrations/202610100001_initial_schema.sql`, then `supabase/migrations/202610140001_ticket_workflow_and_customer_approval.sql` (additive: new workflow states, the customer-approval fields, and the finalized-ticket lock; it rewrites no rows), to a **fresh** database using the Supabase SQL Editor, or initialize/link the Supabase CLI and apply the migration with `supabase db push`. The migration creates the profiles/workspaces/projects/tickets/line-item/evidence/activity tables, indexes, constraints, triggers, RLS policies, the private `evidence` bucket, and its object policies.
+3. Apply `supabase/migrations/202610100001_initial_schema.sql`, then `supabase/migrations/202610140001_ticket_workflow_and_customer_approval.sql` (additive: new workflow states, the customer-approval fields, and the finalized-ticket lock; it rewrites no rows), then `supabase/migrations/202610150001_field_submissions_inbox.sql` (additive: the field-note inbox tables), to a **fresh** database using the Supabase SQL Editor, or initialize/link the Supabase CLI and apply the migration with `supabase db push`. The migration creates the profiles/workspaces/projects/tickets/line-item/evidence/activity tables, indexes, constraints, triggers, RLS policies, the private `evidence` bucket, and its object policies.
 4. In Supabase → Authentication → URL Configuration, set **Site URL** to the deployment's canonical origin. Add these exact redirect URLs (as applicable):
    - `http://localhost:3000/auth/callback`
    - `https://YOUR_VERCEL_DOMAIN/auth/callback`
@@ -73,9 +73,13 @@ Open <http://localhost:3000>. If Supabase keys are absent, the public website re
 7. Review the migration and RLS policies in your own project. The account trigger creates one company/workspace and owner membership on account creation. The starter UI selects the earliest workspace; a multi-workspace switcher and member-invitation flow are not included.
 8. Test uploads with a signed-in account. The bucket is private, limited to 10 MB JPG/PNG/WebP objects. Signed image URLs expire after one hour. Do not manually make the bucket public.
 
-The initial SQL migration is intended for a new Supabase project. If you already applied it, apply only `202610140001_ticket_workflow_and_customer_approval.sql` (never re-run the `create table` statements). Until that follow-up migration is applied, the new statuses and the customer-approval card will not save; review it first and apply it to a staging project before production.
+The initial SQL migration is intended for a new Supabase project. If you already applied it, apply only the newer migrations in order (`202610140001_…`, then `202610150001_…`); never re-run the `create table` statements in the initial file. Until that follow-up migration is applied, the new statuses and the customer-approval card will not save; review it first and apply it to a staging project before production.
 
-Inbox (text/photo intake) and Team (invitations and roles) are honest placeholders: no SMS provider, transcription or AI extraction is connected, and costs for those services have not been approved.
+### Inbox
+
+The office inbox (`/inbox`) holds field notes waiting for review. A person logs a note (and up to 10 photos) through the web app; the office then assigns a project, flags what is missing, and creates a work ticket from it, which closes the note. Statuses: New, Needs project, Missing details, Ready for review, Processed, Dismissed. The rules are enforced by the database as well as the interface: the original note, sender and time cannot be edited, notes and photos cannot be deleted, "Ready for review" requires a project, "Missing details" requires a note, and "Processed" requires a linked ticket. Photos live in the private `evidence` bucket under `<company>/inbox/<submission>/`.
+
+Not built: receiving notes by SMS/MMS, voice transcription and AI extraction. They need a paid provider (and, for extraction, an AI service), and their costs have not been approved. The `sms` and `mms` source values are reserved so a provider can later write rows with the service role. Photos on a note are not copied onto the ticket created from it; they stay on the note. Team (invitations and roles) is still a placeholder.
 
 ## Database and access model
 
