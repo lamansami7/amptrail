@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, Clock3, FileText, MapPin, Pencil, Plus, UserRo
 import { requireWorkspace } from '@/lib/data/workspace';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { calculateTicketTotals } from '@/lib/tickets/totals';
+import { compareFieldTicketTotals } from '@/lib/fieldticket/compare';
 import { PageHeader, DataSetupMessage } from '@/components/workspace/app-page';
 import { StatusBadge } from '@/components/workspace/status-badge';
 import { ButtonLink } from '@/components/ui/button';
@@ -41,6 +42,21 @@ export default async function TicketDetailPage({ params }: Props) {
     canDelete: item.uploaded_by === user.id,
   }));
   const totals = calculateTicketTotals({ labor: labor || [], materials: materials || [], costs: costs || [] });
+  const fieldticketComparison =
+    process.env.FIELDTICKET_COMPARISON_ENABLED === 'true'
+      ? await compareFieldTicketTotals({
+          ticket_number: ticket.ticket_number,
+          contractor: workspace.name,
+          customer: project.general_contractor || 'Not specified',
+          project: project.name,
+          work_date: ticket.occurred_at.slice(0, 10),
+          description: ticket.description,
+          labor: labor || [],
+          materials: materials || [],
+          costs: costs || [],
+        })
+      : null;
+
   const canEdit = ticket.created_by === user.id;
 
   return <div className="print-page">
@@ -54,6 +70,19 @@ export default async function TicketDetailPage({ params }: Props) {
     <div className="no-print mb-6"><TicketExport ticket={ticket} project={project} labor={labor || []} materials={materials || []} costs={costs || []} evidence={evidenceWithUrls} /></div>
     {project.is_archived && <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-700">This project is archived. Existing records can still be updated, but new tickets or duplicates require restoring the project first.</div>}
     <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-950"><strong>Tracking record only.</strong> The status and calculated amounts do not establish customer approval, contract entitlement, or payment. Follow your contract and customer process.</div>
+
+    {fieldticketComparison && (
+      <div className="no-print mb-4 rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink">
+        <strong>FieldTicket comparison:</strong>{' '}
+        {fieldticketComparison.status === 'matched'
+          ? 'Totals match'
+          : fieldticketComparison.status === 'mismatch'
+            ? 'Totals differ — review required'
+            : fieldticketComparison.status === 'skipped'
+              ? 'Comparison skipped'
+              : 'Comparison unavailable'}
+      </div>
+    )}
 
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-5">
