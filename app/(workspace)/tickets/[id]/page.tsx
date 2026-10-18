@@ -16,6 +16,7 @@ import {
 import { requireWorkspace } from '@/lib/data/workspace';
 import { formatCurrency, formatDate, formatHours, formatQuantity } from '@/lib/utils';
 import { calculateTicketTotals } from '@/lib/tickets/totals';
+import { compareFieldTicketTotals } from '@/lib/fieldticket/compare';
 import { WorkspaceDataNotice } from '@/components/workspace/data-notice';
 import { Alert } from '@/components/ui/alert';
 import { ButtonLink } from '@/components/ui/button';
@@ -183,6 +184,22 @@ export default async function TicketDetailPage({ params }: Props) {
     costs: costRows.map((row) => ({ quantity: Number(row.quantity), unit_cost: Number(row.unit_cost) })),
   });
 
+
+  const fieldticketComparison =
+    process.env.FIELDTICKET_COMPARISON_ENABLED === 'true'
+      ? await compareFieldTicketTotals({
+          ticket_number: ticket.ticket_number,
+          contractor: workspace.name,
+          customer: project.general_contractor || 'Not specified',
+          project: project.name,
+          work_date: ticket.occurred_at.slice(0, 10),
+          description: ticket.description,
+          labor: labourRows,
+          materials: materialRows,
+          costs: costRows,
+        })
+      : null;
+
   const canEdit = ticket.created_by === user.id;
   const isDraft = ticket.status === 'draft';
 
@@ -214,6 +231,19 @@ export default async function TicketDetailPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {fieldticketComparison && (
+        <div className="no-print rounded-xl border border-line bg-white px-4 py-3 text-sm">
+          <strong>FieldTicket comparison:</strong>{' '}
+          {fieldticketComparison.status === 'matched'
+            ? 'Totals match'
+            : fieldticketComparison.status === 'mismatch'
+              ? 'Totals differ — review required'
+              : fieldticketComparison.status === 'skipped'
+                ? 'Comparison skipped'
+                : 'Comparison unavailable'}
+        </div>
+      )}
 
       {/* Document header */}
       <Card className="overflow-hidden">
