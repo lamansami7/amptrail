@@ -52,7 +52,7 @@ export async function calculateWithFieldTicket(
       },
       body: JSON.stringify(ticket),
       cache: 'no-store',
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(2000),
     }
   );
 
