@@ -21,7 +21,14 @@ export function toFieldTicketInput(input: {
   description: string;
   labor: Labor[];
   materials: Cost[];
+  costs?: Cost[];
 }): FieldTicketInput {
+  if (input.costs?.length) {
+    throw new Error(
+      'FieldTicket does not support separate other-cost entries yet'
+    );
+  }
+
   return {
     ticket_number: input.ticket_number,
     contractor: input.contractor,

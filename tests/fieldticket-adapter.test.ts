@@ -46,3 +46,27 @@ describe('FieldTicket adapter', () => {
     expect(laborTotal + materialTotal).toBe(970);
   });
 });
+
+describe('FieldTicket other-cost safety', () => {
+  it('rejects tickets with unsupported other costs', () => {
+    expect(() =>
+      toFieldTicketInput({
+        ticket_number: 'AMP-002',
+        contractor: 'Demo Contractor',
+        customer: 'Demo Customer',
+        project: 'Demo Project',
+        work_date: '2026-10-18',
+        description: 'Extra work',
+        labor: [],
+        materials: [],
+        costs: [
+          {
+            description: 'Equipment rental',
+            quantity: 1,
+            unit_cost: 150,
+          },
+        ],
+      })
+    ).toThrow('FieldTicket does not support separate other-cost entries yet');
+  });
+});
