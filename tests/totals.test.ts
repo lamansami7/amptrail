@@ -21,6 +21,16 @@ describe('ticket totals', () => {
     })).toEqual({ labor: 97.5, materials: 37.2, other: 30, total: 164.7 });
   });
 
+  it('computes the Arena QA ticket exactly: $100 labor + $50 materials = $150', () => {
+    expect(
+      calculateTicketTotals({
+        labor: [{ hours: 2, rate: 50 }],
+        materials: [{ quantity: 2, unit_cost: 25 }],
+        costs: [],
+      })
+    ).toEqual({ labor: 100, materials: 50, other: 0, total: 150 });
+  });
+
   it('returns zero for an empty ticket', () => {
     expect(calculateTicketTotals({ labor: [], materials: [], costs: [] }).total).toBe(0);
   });

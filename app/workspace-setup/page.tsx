@@ -50,23 +50,23 @@ export default async function WorkspaceSetupPage() {
           <Card flush>
             <CardHeader
               title="How to fix this"
-              description="Usually a one-time database step"
+              description="Start with step 1 — setup retries automatically"
               icon={<Database size={16} aria-hidden="true" />}
               bordered
             />
             <ol className="divide-y divide-line">
               {[
                 {
-                  title: 'Apply the migration',
-                  body: 'Run supabase/migrations/202610100001_initial_schema.sql in the Supabase SQL editor, or apply it with the Supabase CLI.',
-                },
-                {
-                  title: 'Confirm the provisioning trigger',
-                  body: 'The migration creates a trigger that provisions a company and owner membership whenever a new account is created.',
+                  title: 'Check again',
+                  body: 'Use the button below. AmpTrail retries workspace setup for your signed-in account on every visit, so a hiccup during sign-up usually clears itself.',
                 },
                 {
                   title: 'Sign out and back in',
-                  body: 'The membership is read fresh on each request, so a sign-out and sign-in is usually enough.',
+                  body: 'Your membership is read fresh on each request, so a sign-out and sign-in can pick up a workspace that finished setting up in the background.',
+                },
+                {
+                  title: 'Contact support',
+                  body: `Still stuck? Email ${SUPPORT_EMAIL} from the address you signed up with and mention this screen — we can finish the setup for you.`,
                 },
               ].map((step, index) => (
                 <li key={step.title} className="flex gap-4 px-5 py-4">
