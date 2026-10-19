@@ -190,6 +190,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      ensure_user_workspace: {
+        Args: { p_company_name?: string | null };
+        Returns: string | null;
+      };
       save_work_ticket: {
         Args: {
           p_ticket_id: string | null;

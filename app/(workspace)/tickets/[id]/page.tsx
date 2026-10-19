@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import {
   ArrowLeft,
   CalendarDays,
@@ -82,6 +83,29 @@ function LineItemsTable({
         </tr>
       </tbody>
     </TableShell>
+  );
+}
+
+type ComparisonInput = Parameters<typeof compareFieldTicketTotals>[0];
+
+/**
+ * Rendered behind <Suspense>: a slow or unavailable FieldTicket service never
+ * delays the ticket record itself, and every failure mode of the comparison
+ * already resolves to an informational status instead of throwing.
+ */
+async function FieldTicketComparison({ input }: { input: ComparisonInput }) {
+  const comparison = await compareFieldTicketTotals(input);
+  return (
+    <div className="no-print rounded-xl border border-line bg-white px-4 py-3 text-sm">
+      <strong>FieldTicket comparison:</strong>{' '}
+      {comparison.status === 'matched'
+        ? 'Totals match'
+        : comparison.status === 'mismatch'
+          ? 'Totals differ — review required'
+          : comparison.status === 'skipped'
+            ? 'Comparison skipped'
+            : 'Comparison unavailable'}
+    </div>
   );
 }
 
@@ -185,19 +209,34 @@ export default async function TicketDetailPage({ params }: Props) {
   });
 
 
-  const fieldticketComparison =
+  // The external comparison can take up to its 30s timeout when FieldTicket
+  // is cold-starting, so it streams in behind <Suspense> instead of blocking
+  // the ticket itself. Plain numeric shapes are passed in, not database rows.
+  const comparisonInput =
     process.env.FIELDTICKET_COMPARISON_ENABLED === 'true'
-      ? await compareFieldTicketTotals({
+      ? {
           ticket_number: ticket.ticket_number,
           contractor: workspace.name,
           customer: project.general_contractor || 'Not specified',
           project: project.name,
           work_date: ticket.occurred_at.slice(0, 10),
           description: ticket.description,
-          labor: labourRows,
-          materials: materialRows,
-          costs: costRows,
-        })
+          labor: labourRows.map((row) => ({
+            worker_name: row.worker_name,
+            hours: Number(row.hours),
+            rate: Number(row.rate),
+          })),
+          materials: materialRows.map((row) => ({
+            description: row.description,
+            quantity: Number(row.quantity),
+            unit_cost: Number(row.unit_cost),
+          })),
+          costs: costRows.map((row) => ({
+            description: row.description,
+            quantity: Number(row.quantity),
+            unit_cost: Number(row.unit_cost),
+          })),
+        }
       : null;
 
   const canEdit = ticket.created_by === user.id;
@@ -232,17 +271,16 @@ export default async function TicketDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {fieldticketComparison && (
-        <div className="no-print rounded-xl border border-line bg-white px-4 py-3 text-sm">
-          <strong>FieldTicket comparison:</strong>{' '}
-          {fieldticketComparison.status === 'matched'
-            ? 'Totals match'
-            : fieldticketComparison.status === 'mismatch'
-              ? 'Totals differ — review required'
-              : fieldticketComparison.status === 'skipped'
-                ? 'Comparison skipped'
-                : 'Comparison unavailable'}
-        </div>
+      {comparisonInput && (
+        <Suspense
+          fallback={
+            <div className="no-print rounded-xl border border-line bg-white px-4 py-3 text-sm" role="status">
+              <strong>FieldTicket comparison:</strong> Checking totals…
+            </div>
+          }
+        >
+          <FieldTicketComparison input={comparisonInput} />
+        </Suspense>
       )}
 
       {/* Document header */}

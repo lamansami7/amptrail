@@ -47,6 +47,46 @@ describe('FieldTicket adapter', () => {
   });
 });
 
+describe('FieldTicket payload length limits', () => {
+  it('truncates text to FieldTicket API limits so long AmpTrail records still compare', () => {
+    const result = toFieldTicketInput({
+      ticket_number: 'AT-26-00001',
+      contractor: 'C'.repeat(250),
+      customer: 'CU',
+      project: 'P'.repeat(250),
+      work_date: '2026-10-19',
+      description: 'D'.repeat(12000), // AmpTrail allows 12,000; the API allows 3,000
+      labor: [{ worker_name: 'L'.repeat(240), hours: 2, rate: 50 }],
+      materials: [{ description: 'M'.repeat(240), quantity: 2, unit_cost: 25 }],
+    });
+
+    expect(result.description).toHaveLength(3000);
+    expect(result.contractor).toHaveLength(200);
+    expect(result.project).toHaveLength(200);
+    expect(result.labor[0].description).toHaveLength(200);
+    expect(result.materials[0].description).toHaveLength(200);
+    // Truncation never changes the money.
+    expect(result.labor[0].hours_per_worker).toBe(2);
+    expect(result.materials[0].unit_price).toBe(25);
+  });
+
+  it('leaves short values untouched', () => {
+    const result = toFieldTicketInput({
+      ticket_number: 'AT-26-00001',
+      contractor: 'Arena QA Electric',
+      customer: 'Arena Test Contractor',
+      project: 'Arena QA Test Project',
+      work_date: '2026-10-19',
+      description: 'Installed additional conduit during QA testing.',
+      labor: [{ worker_name: 'Journeyman electrician', hours: 2, rate: 50 }],
+      materials: [{ description: 'EMT conduit', quantity: 2, unit_cost: 25 }],
+    });
+
+    expect(result.description).toBe('Installed additional conduit during QA testing.');
+    expect(result.labor[0].description).toBe('Journeyman electrician');
+  });
+});
+
 describe('FieldTicket other-cost safety', () => {
   it('rejects tickets with unsupported other costs', () => {
     expect(() =>
