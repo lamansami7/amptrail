@@ -97,12 +97,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={inter.variable} data-scroll-behavior="smooth">
       <body>
-        <a
-          href="#main"
-          className="sr-only fixed left-4 top-4 z-[100] rounded-lg bg-ink px-4 py-3 font-semibold text-white shadow-lg focus:not-sr-only"
-        >
-          Skip to main content
-        </a>
         {children}
         <Script
           id="ga4-init"
