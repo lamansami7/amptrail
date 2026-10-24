@@ -315,18 +315,18 @@ export default function HomePage() {
               </p>
 
               <h1 className="display hero-rise mt-6 lg:text-[2.7rem]" style={{ ['--d' as string]: '80ms' }}>
-                The work happened.
+                Extra work deserves
                 <br />
-                <span className="text-brand-600">Make sure it’s documented.</span>
+                <span className="text-brand-600">a complete paper trail.</span>
               </h1>
 
               <p
                 className="hero-rise mt-6 text-[1.0625rem] leading-7 text-body sm:text-lg sm:leading-8"
                 style={{ ['--d' as string]: '160ms' }}
               >
-                AmpTrail turns jobsite evidence, like photos, hours, materials and notes, into
-                organized T&amp;M tickets your office can review and export. Build tickets in your
-                browser today. Text-message intake is in development.
+                Capture extra electrical work before the details disappear. Keep labor, materials,
+                jobsite photos and field notes together, then review and export professional
+                T&amp;M tickets. Available in your browser today; text intake is in development.
               </p>
 
               <div
