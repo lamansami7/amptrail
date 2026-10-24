@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Menu, X } from 'lucide-react';
 import { Brand } from '@/components/brand';
@@ -17,19 +17,46 @@ const navLinks = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
-  // Lock the page behind the sheet and let Escape close it.
+  // Keep focus inside the open navigation and restore it on close.
   useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : '';
-    if (!open) return () => { document.body.style.overflow = ''; };
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusable = sheetRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
+
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', onKeyDown);
+      menuButtonRef.current?.focus();
     };
   }, [open]);
 
@@ -64,11 +91,13 @@ export function SiteHeader() {
         </div>
 
         <button
+          ref={menuButtonRef}
           type="button"
           onClick={() => setOpen(true)}
           className="grid h-10 w-10 place-items-center rounded-lg text-body transition-colors duration-150 hover:bg-surface-2 hover:text-ink lg:hidden"
           aria-label="Open menu"
           aria-expanded={open}
+          aria-controls="marketing-mobile-navigation"
         >
           <Menu size={20} aria-hidden="true" />
         </button>
@@ -76,12 +105,14 @@ export function SiteHeader() {
 
       {/* Mobile sheet */}
       <div
+        id="marketing-mobile-navigation"
+        ref={sheetRef}
         className={cn(
           'fixed inset-0 z-50 lg:hidden',
           open ? 'pointer-events-auto' : 'pointer-events-none'
         )}
         role="dialog"
-        aria-modal={open ? "true" : undefined}
+        aria-modal={open ? true : undefined}
         aria-label="Mobile navigation"
         aria-hidden={!open}
         // Keeps the closed sheet out of the tab order without unmounting it.
@@ -103,6 +134,7 @@ export function SiteHeader() {
           <div className="flex h-16 items-center justify-between px-4">
             <Brand />
             <button
+              ref={closeButtonRef}
               type="button"
               onClick={() => setOpen(false)}
               className="grid h-10 w-10 place-items-center rounded-lg text-body transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
