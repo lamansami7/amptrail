@@ -50,7 +50,7 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 sm:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <Link
             href="/login"
             className="rounded-lg px-3 py-2 text-[13.5px] font-semibold text-body transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
@@ -80,6 +80,9 @@ export function SiteHeader() {
           'fixed inset-0 z-50 lg:hidden',
           open ? 'pointer-events-auto' : 'pointer-events-none'
         )}
+        role="dialog"
+        aria-modal={open ? "true" : undefined}
+        aria-label="Mobile navigation"
         aria-hidden={!open}
         // Keeps the closed sheet out of the tab order without unmounting it.
         inert={!open}
