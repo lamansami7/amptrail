@@ -293,6 +293,7 @@ const faqs = [
 export default function HomePage() {
   return (
     <>
+      <a href="#main" className="sr-only fixed left-4 top-4 z-[100] rounded-lg bg-ink px-4 py-3 font-semibold text-white shadow-lg focus:not-sr-only">Skip to main content</a>
       <SiteHeader />
 
       <main id="main">
